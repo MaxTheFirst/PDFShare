@@ -1,0 +1,112 @@
+services:
+  spring-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pdfshare-app
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - minio
+    environment:
+      - DATABASE_URL: postgresql://pdfshare:pdfshare_password@db:5432/pdfshare
+      - DOMAINS: ${DOMAIN}
+      - NODE_ENV: production
+      - PORT: 3000
+      - SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
+      - TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      - MINIO_ENDPOINT: minio
+      - MINIO_PORT: 9000
+      - MINIO_SSL: false
+      - MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      - MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      - ENABLE_TEST_LOGIN: false
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - pdfshare-net
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: pdfshare-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pdfshare
+      POSTGRES_PASSWORD: pdfshare_password
+      POSTGRES_DB: pdfshare
+    volumes:
+      - pdfshare_data_db:/var/lib/postgresql/data
+    networks:
+      - pdfshare-net
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - pdfshare_data_storage:/data
+    networks:
+      - pdfshare-net
+
+  nginx:
+    build: ./nginx
+    container_name: nginx
+    depends_on:
+      - spring-app
+    environment:
+      - DOMAIN=${DOMAIN}
+      - APP_PORT=${APP_PORT}
+      - NGINX_PORT_1=80
+      - NGINX_PORT_2=443
+      - EMAIL=${EMAIL}
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - pdfshare_data_nginx_logs:/var/log/nginx/
+      - pdfshare_data_nginx_certs:/etc/nginx/certs
+      - pdfshare_data_letsencrypt_www:/tmp/letsencrypt/www
+      - pdfshare_data_nginx_www:/home/web/www
+      - pdfshare_data_nginx_cache:/var/cache/nginx
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '10'
+    restart: always
+    networks:
+      - pdfshare-net
+
+  letsencrypt:
+    image: gordonchan/auto-letsencrypt
+    container_name: letsencrypt
+    volumes:
+      - pdfshare_data_letsencrypt_log:/var/log/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock
+      - pdfshare_data_letsencrypt_etc:/etc/letsencrypt
+      - pdfshare_data_letsencrypt_lib:/var/lib/letsencrypt
+      - pdfshare_data_letsencrypt_www:/tmp/letsencrypt/www
+      - pdfshare_data_nginx_certs:/etc/nginx/certs
+    environment:
+      - EMAIL: ${EMAIL}
+      - SERVER_CONTAINER: nginx
+      - WEBROOT_PATH: /tmp/letsencrypt/www
+      - CERTS_PATH: /etc/nginx/certs
+      - DOMAINS: ${DOMAIN}
+      - CHECK_FREQ: 1
+      - SERVER_CONTAINER_LABEL: proxy_nginx
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '10'
+    restart: unless-stopped
+    networks:
+      - pdfshare-net

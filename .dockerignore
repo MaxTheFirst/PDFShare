@@ -1,0 +1,55 @@
+# Node modules
+node_modules
+npm-debug.log
+
+# Tests
+**/__tests__
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+e2e
+.loki
+playwright-report
+test-results
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+*.log
+
+# Git
+.git
+.gitignore
+.github
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation
+*.md
+docs
+
+# CI/CD
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Build artifacts (будут созданы в образе)
+dist
+
+# Storybook
+.storybook
+storybook-static
+
+# Coverage
+coverage
+.nyc_output
+
+# Misc
+.DS_Store
+Thumbs.db

@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1763898042896,
+      "tag": "0000_moaning_iceman",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1765916712547,
+      "tag": "0001_past_master_mold",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1765918232789,
+      "tag": "0002_closed_red_shift",
+      "breakpoints": true
+    }
+  ]
+}

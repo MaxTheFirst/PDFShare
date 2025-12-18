@@ -1,0 +1,115 @@
+2025/12/03 23:28:12 [notice] 1#1: using the "epoll" event method
+2025/12/03 23:28:12 [notice] 1#1: nginx/1.20.2
+2025/12/03 23:28:12 [notice] 1#1: built by gcc 10.3.1 20210424 (Alpine 10.3.1_git20210424) 
+2025/12/03 23:28:12 [notice] 1#1: OS: Linux 6.10.14-linuxkit
+2025/12/03 23:28:12 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1048576:1048576
+2025/12/03 23:28:12 [notice] 1#1: start worker processes
+2025/12/03 23:28:12 [notice] 1#1: start worker process 15
+2025/12/03 23:28:12 [notice] 1#1: start worker process 16
+2025/12/03 23:28:12 [notice] 1#1: start worker process 17
+2025/12/03 23:28:12 [notice] 1#1: start worker process 18
+2025/12/03 23:28:12 [notice] 1#1: start worker process 19
+2025/12/03 23:28:12 [notice] 1#1: start worker process 20
+2025/12/03 23:28:12 [notice] 1#1: start worker process 21
+2025/12/03 23:28:12 [notice] 1#1: start worker process 22
+2025/12/03 23:28:12 [notice] 1#1: start cache manager process 23
+2025/12/03 23:28:12 [notice] 1#1: start cache loader process 24
+2025/12/03 23:28:14 [notice] 1#1: signal 1 (SIGHUP) received, reconfiguring
+2025/12/03 23:28:14 [notice] 1#1: reconfiguring
+2025/12/03 23:28:14 [notice] 1#1: using the "epoll" event method
+2025/12/03 23:28:14 [notice] 1#1: start worker processes
+2025/12/03 23:28:14 [notice] 1#1: start worker process 25
+2025/12/03 23:28:14 [notice] 1#1: start worker process 26
+2025/12/03 23:28:14 [notice] 1#1: start worker process 27
+2025/12/03 23:28:14 [notice] 1#1: start worker process 28
+2025/12/03 23:28:14 [notice] 1#1: start worker process 29
+2025/12/03 23:28:14 [notice] 1#1: start worker process 30
+2025/12/03 23:28:14 [notice] 1#1: start worker process 31
+2025/12/03 23:28:14 [notice] 1#1: start worker process 32
+2025/12/03 23:28:14 [notice] 1#1: start cache manager process 33
+2025/12/03 23:28:14 [notice] 1#1: start cache loader process 34
+2025/12/03 23:28:14 [notice] 16#16: gracefully shutting down
+2025/12/03 23:28:14 [notice] 22#22: gracefully shutting down
+2025/12/03 23:28:14 [notice] 22#22: exiting
+2025/12/03 23:28:14 [notice] 15#15: gracefully shutting down
+2025/12/03 23:28:14 [notice] 18#18: gracefully shutting down
+2025/12/03 23:28:14 [notice] 17#17: gracefully shutting down
+2025/12/03 23:28:14 [notice] 20#20: gracefully shutting down
+2025/12/03 23:28:14 [notice] 20#20: exiting
+2025/12/03 23:28:14 [notice] 20#20: exit
+2025/12/03 23:28:14 [notice] 19#19: gracefully shutting down
+2025/12/03 23:28:14 [notice] 16#16: exiting
+2025/12/03 23:28:14 [notice] 24#24: exiting
+2025/12/03 23:28:14 [notice] 23#23: exiting
+2025/12/03 23:28:14 [notice] 21#21: gracefully shutting down
+2025/12/03 23:28:14 [notice] 22#22: exit
+2025/12/03 23:28:14 [notice] 15#15: exiting
+2025/12/03 23:28:14 [notice] 18#18: exiting
+2025/12/03 23:28:14 [notice] 17#17: exiting
+2025/12/03 23:28:14 [notice] 19#19: exiting
+2025/12/03 23:28:14 [notice] 16#16: exit
+2025/12/03 23:28:14 [notice] 21#21: exiting
+2025/12/03 23:28:14 [notice] 15#15: exit
+2025/12/03 23:28:14 [notice] 17#17: exit
+2025/12/03 23:28:14 [notice] 18#18: exit
+2025/12/03 23:28:14 [notice] 19#19: exit
+2025/12/03 23:28:14 [notice] 21#21: exit
+2025/12/03 23:28:14 [notice] 1#1: signal 17 (SIGCHLD) received from 20
+2025/12/03 23:28:14 [notice] 1#1: worker process 20 exited with code 0
+2025/12/03 23:28:14 [notice] 1#1: signal 29 (SIGIO) received
+2025/12/03 23:28:14 [notice] 1#1: signal 17 (SIGCHLD) received from 22
+2025/12/03 23:28:14 [notice] 1#1: worker process 22 exited with code 0
+2025/12/03 23:28:14 [notice] 1#1: cache manager process 23 exited with code 0
+2025/12/03 23:28:14 [notice] 1#1: cache loader process 24 exited with code 0
+2025/12/03 23:28:14 [notice] 1#1: signal 29 (SIGIO) received
+2025/12/03 23:28:14 [notice] 1#1: signal 17 (SIGCHLD) received from 23
+2025/12/03 23:28:14 [notice] 1#1: signal 17 (SIGCHLD) received from 19
+2025/12/03 23:28:14 [notice] 1#1: worker process 15 exited with code 0
+2025/12/03 23:28:14 [notice] 1#1: worker process 16 exited with code 0
+2025/12/03 23:28:14 [notice] 1#1: worker process 17 exited with code 0
+2025/12/03 23:28:14 [notice] 1#1: worker process 18 exited with code 0
+2025/12/03 23:28:14 [notice] 1#1: worker process 19 exited with code 0
+2025/12/03 23:28:14 [notice] 1#1: worker process 21 exited with code 0
+2025/12/03 23:28:14 [notice] 1#1: signal 29 (SIGIO) received
+2025/12/03 23:28:14 [notice] 1#1: signal 17 (SIGCHLD) received from 18
+2025/12/03 23:29:14 [notice] 34#34: http file cache: /var/cache/nginx 0.000M, bsize: 4096
+2025/12/03 23:29:14 [notice] 1#1: signal 17 (SIGCHLD) received from 34
+2025/12/03 23:29:14 [notice] 1#1: cache loader process 34 exited with code 0
+2025/12/03 23:29:14 [notice] 1#1: signal 29 (SIGIO) received
+2025/12/03 23:33:57 [notice] 1#1: signal 3 (SIGQUIT) received, shutting down
+2025/12/03 23:33:57 [notice] 26#26: gracefully shutting down
+2025/12/03 23:33:57 [notice] 31#31: gracefully shutting down
+2025/12/03 23:33:57 [notice] 25#25: gracefully shutting down
+2025/12/03 23:33:57 [notice] 27#27: gracefully shutting down
+2025/12/03 23:33:57 [notice] 28#28: gracefully shutting down
+2025/12/03 23:33:57 [notice] 30#30: gracefully shutting down
+2025/12/03 23:33:57 [notice] 29#29: gracefully shutting down
+2025/12/03 23:33:57 [notice] 32#32: gracefully shutting down
+2025/12/03 23:33:57 [notice] 33#33: exiting
+2025/12/03 23:33:57 [notice] 26#26: exiting
+2025/12/03 23:33:57 [notice] 31#31: exiting
+2025/12/03 23:33:57 [notice] 25#25: exiting
+2025/12/03 23:33:57 [notice] 27#27: exiting
+2025/12/03 23:33:57 [notice] 28#28: exiting
+2025/12/03 23:33:57 [notice] 30#30: exiting
+2025/12/03 23:33:57 [notice] 29#29: exiting
+2025/12/03 23:33:57 [notice] 30#30: exit
+2025/12/03 23:33:57 [notice] 32#32: exiting
+2025/12/03 23:33:57 [notice] 26#26: exit
+2025/12/03 23:33:57 [notice] 25#25: exit
+2025/12/03 23:33:57 [notice] 31#31: exit
+2025/12/03 23:33:57 [notice] 27#27: exit
+2025/12/03 23:33:57 [notice] 28#28: exit
+2025/12/03 23:33:57 [notice] 29#29: exit
+2025/12/03 23:33:57 [notice] 32#32: exit
+2025/12/03 23:33:57 [notice] 1#1: signal 17 (SIGCHLD) received from 29
+2025/12/03 23:33:57 [notice] 1#1: worker process 26 exited with code 0
+2025/12/03 23:33:57 [notice] 1#1: worker process 25 exited with code 0
+2025/12/03 23:33:57 [notice] 1#1: worker process 27 exited with code 0
+2025/12/03 23:33:57 [notice] 1#1: worker process 28 exited with code 0
+2025/12/03 23:33:57 [notice] 1#1: worker process 29 exited with code 0
+2025/12/03 23:33:57 [notice] 1#1: worker process 30 exited with code 0
+2025/12/03 23:33:57 [notice] 1#1: worker process 31 exited with code 0
+2025/12/03 23:33:57 [notice] 1#1: worker process 32 exited with code 0
+2025/12/03 23:33:57 [notice] 1#1: cache manager process 33 exited with code 0
+2025/12/03 23:33:57 [notice] 1#1: exit
