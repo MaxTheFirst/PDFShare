@@ -36,6 +36,7 @@ npm install
 ```
 
 ### 3. Тестовый docker
+*В корне docker-compose.yml для production. Для тестов можно поднять отдельно.* \
 **docker-compose.yml:**
 ```version: '3.8'
 
@@ -79,7 +80,36 @@ networks:
 ```
 Запуск: `docker-compose up --build`
 ### 4. Настройка переменных окружения
-Файл `.env` в корне проекта.
+*.env для тестов:*
+```
+HOST=127.0.0.1
+PORT=5000
+DOMAIN=localhost
+
+# Database
+DATABASE_URL=postgresql://postgres:postgres123@localhost:5432/pdfshare_dev
+
+# Server
+NODE_ENV=development
+PORT=5000
+
+# Telegram Bot (опционально)
+TELEGRAM_BOT_TOKEN=******
+
+# Minio
+MINIO_ENDPOINT=minio
+MINIO_PORT=9000
+MINIO_SSL=false
+MINIO_BUCKET=uploads
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin123
+
+# Session
+SESSION_SECRET=your-random-secret-here
+
+# Testing (для E2E тестов)
+ENABLE_TEST_LOGIN=true
+```
 ### 6. Запуск приложения
 
 ```bash
@@ -110,8 +140,8 @@ npm test -- authSlice.test.ts
 
 **Ожидаемый результат:**
 ```
-Test Suites: 6 passed, 6 total
-Tests:       59 passed, 59 total
+Test Suites: 5 passed, 5 total
+Tests:       49 passed, 49 total
 ```
 
 ### Component тесты (Storybook + Loki)

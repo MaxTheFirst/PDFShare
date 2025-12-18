@@ -1,24 +1,12 @@
-CREATE TABLE "file_versions" (
-	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"file_id" varchar NOT NULL,
-	"version" integer NOT NULL,
-	"object_path" text NOT NULL,
-	"size" integer NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE "files" (
 	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
 	"folder_id" varchar NOT NULL,
 	"owner_id" varchar NOT NULL,
-	"object_path" text NOT NULL,
-	"share_token" varchar,
 	"size" integer NOT NULL,
 	"version" integer DEFAULT 1 NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "files_share_token_unique" UNIQUE("share_token")
+	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "folders" (
@@ -60,7 +48,6 @@ CREATE TABLE "users" (
 	CONSTRAINT "users_telegram_id_unique" UNIQUE("telegram_id")
 );
 --> statement-breakpoint
-ALTER TABLE "file_versions" ADD CONSTRAINT "file_versions_file_id_files_id_fk" FOREIGN KEY ("file_id") REFERENCES "public"."files"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "files" ADD CONSTRAINT "files_folder_id_folders_id_fk" FOREIGN KEY ("folder_id") REFERENCES "public"."folders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "files" ADD CONSTRAINT "files_owner_id_users_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "folders" ADD CONSTRAINT "folders_owner_id_users_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

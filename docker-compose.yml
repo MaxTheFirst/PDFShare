@@ -1,26 +1,30 @@
 services:
-  spring-app:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: pdfshare-app
+    container_name: app
     restart: unless-stopped
     depends_on:
-      - postgres
-      - minio
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     environment:
-      - DATABASE_URL: postgresql://pdfshare:pdfshare_password@db:5432/pdfshare
-      - DOMAINS: ${DOMAIN}
-      - NODE_ENV: production
-      - PORT: 3000
-      - SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
-      - TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      - MINIO_ENDPOINT: minio
-      - MINIO_PORT: 9000
-      - MINIO_SSL: false
-      - MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      - MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
-      - ENABLE_TEST_LOGIN: false
+      DATABASE_URL: postgresql://pdfshare:pdfshare_password@db:5432/pdfshare
+      DOMAIN: ${DOMAIN}
+      NODE_ENV: production
+      PORT: ${PORT}
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_SSL: false
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      ENABLE_TEST_LOGIN: false
+    volumes:
+      - app_logs:/app/logs
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -40,6 +44,13 @@ services:
       POSTGRES_DB: pdfshare
     volumes:
       - pdfshare_data_db:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pdfshare -d pdfshare"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - pdfshare-net
 
@@ -48,21 +59,30 @@ services:
     container_name: minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
     volumes:
       - pdfshare_data_storage:/data
     networks:
       - pdfshare-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://minio:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   nginx:
-    build: ./nginx
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
     container_name: nginx
     depends_on:
-      - spring-app
+      - app
     environment:
       - DOMAIN=${DOMAIN}
-      - APP_PORT=${APP_PORT}
+      - APP_CONTAINER=app
+      - APP_PORT=${PORT}
       - NGINX_PORT_1=80
       - NGINX_PORT_2=443
       - EMAIL=${EMAIL}
@@ -95,13 +115,13 @@ services:
       - pdfshare_data_letsencrypt_www:/tmp/letsencrypt/www
       - pdfshare_data_nginx_certs:/etc/nginx/certs
     environment:
-      - EMAIL: ${EMAIL}
-      - SERVER_CONTAINER: nginx
-      - WEBROOT_PATH: /tmp/letsencrypt/www
-      - CERTS_PATH: /etc/nginx/certs
-      - DOMAINS: ${DOMAIN}
-      - CHECK_FREQ: 1
-      - SERVER_CONTAINER_LABEL: proxy_nginx
+      EMAIL: ${EMAIL}
+      SERVER_CONTAINER: nginx
+      WEBROOT_PATH: /tmp/letsencrypt/www
+      CERTS_PATH: /etc/nginx/certs
+      DOMAINS: ${DOMAIN}
+      CHECK_FREQ: 1
+      SERVER_CONTAINER_LABEL: proxy_nginx
     logging:
       driver: 'json-file'
       options:
@@ -110,3 +130,32 @@ services:
     restart: unless-stopped
     networks:
       - pdfshare-net
+
+volumes:
+  app_logs:
+    driver: local
+  pdfshare_data_db:
+    driver: local
+  pdfshare_data_nginx_www:
+    driver: local
+  pdfshare_data_nginx_logs:
+    driver: local
+  pdfshare_data_nginx_certs:
+    driver: local
+  pdfshare_data_nginx_cache:
+    driver: local
+  pdfshare_data_letsencrypt_www:
+    driver: local
+  pdfshare_data_letsencrypt_log:
+    driver: local
+  pdfshare_data_letsencrypt_etc:
+    driver: local
+  pdfshare_data_letsencrypt_lib:
+    driver: local
+  pdfshare_data_storage:
+    driver: local
+
+
+networks:
+  pdfshare-net:
+    driver: bridge

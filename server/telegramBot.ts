@@ -16,7 +16,7 @@ export async function setupTelegramWebhook(app: Express) {
     return;
   }
 
-  const webhookPath = `/webhook/${BOT_TOKEN}`;
+  const webhookPath = `/api/webhook/secret456u8iopoiutsd`;
   const domain = process.env.DOMAIN;
   
   if (!domain) {
@@ -30,8 +30,7 @@ export async function setupTelegramWebhook(app: Express) {
     await bot.setWebHook(webhookUrl);
     console.log(`✅ Telegram webhook установлен: ${webhookUrl}`);
   } catch (error) {
-    console.error("❌ Ошибка установки webhook:", error);
-    return;
+    console.log("❌ Ошибка установки webhook!");
   }
 
   app.post(webhookPath, (req, res) => {

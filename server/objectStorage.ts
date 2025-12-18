@@ -5,7 +5,7 @@ import { Response } from "express";
 const BUCKET_NAME: string = process.env.MINIO_BUCKET || "uploads";
 
 export const minio = new MinioClient({
-  endPoint: process.env.MINIO_ENDPOINT || "localhost",
+  endPoint: process.env.MINIO_ENDPOINT || "minio",
   port: parseInt(process.env.MINIO_PORT || "9000"),
   useSSL: process.env.MINIO_SSL === "true",
   accessKey: process.env.MINIO_ACCESS_KEY!,

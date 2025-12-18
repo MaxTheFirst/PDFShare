@@ -22,7 +22,7 @@ export default function Landing() {
   }, [user, loading, setLocation]);
 
   const handleTelegramLogin = () => {
-    window.location.href = 'https://telegram.me/ttestpython_bot?start=auth';
+    window.location.href = 'https://telegram.me/pdfshareauth_bot?start=auth';
   };
 
   return (

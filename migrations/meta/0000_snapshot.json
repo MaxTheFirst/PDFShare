@@ -1,74 +1,9 @@
 {
-  "id": "bf0f6d76-16de-4a77-922f-77c592bb4006",
+  "id": "9b3e6567-5a04-4038-a7f0-203fb22c4075",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.file_versions": {
-      "name": "file_versions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "varchar",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "file_id": {
-          "name": "file_id",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "object_path": {
-          "name": "object_path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "size": {
-          "name": "size",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "file_versions_file_id_files_id_fk": {
-          "name": "file_versions_file_id_files_id_fk",
-          "tableFrom": "file_versions",
-          "tableTo": "files",
-          "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.files": {
       "name": "files",
       "schema": "",
@@ -97,18 +32,6 @@
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
-        },
-        "object_path": {
-          "name": "object_path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "share_token": {
-          "name": "share_token",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
         },
         "size": {
           "name": "size",
@@ -168,15 +91,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "files_share_token_unique": {
-          "name": "files_share_token_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "share_token"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
