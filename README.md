@@ -1,7 +1,7 @@
 # PDFShare
 
 ## Обзор проекта
-Проект запущен: https://v3002726.hosted-by-vdsina.ru/
+Проект запущен: https://v3002726.hosted-by-vdsina.ru/ (пока не задеплоин)
 
 PDF файлообменник с интеграцией Telegram и системой подписок на обновления файлов.
 
@@ -245,8 +245,7 @@ npx playwright test --debug
 - **Подписка на публичных страницах**: Кнопки subscribe/unsubscribe на /shared/file/:token и /shared/folder/:token (только для авторизованных пользователей)
 
 ### Telegram Bot (server/telegramBot.ts)
-- **Webhook режим** - бот работает через webhook вместо polling
-- Webhook URL: `https://{REPLIT_DEV_DOMAIN}/webhook/{BOT_TOKEN}`
+- **Webhook режим** - бот работает через webhook
 - Русскоязычный интерфейс
 - Команды: /start, /subscriptions, /help
 - Уведомления о новых файлах и обновлениях
