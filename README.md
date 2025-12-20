@@ -21,6 +21,13 @@ PDF файлообменник с интеграцией Telegram и систе�
 - **Язык интерфейса**: Русский
 
 ## Запуск
+### Минимальные требования
+
+- **Node.js**: 18.x или выше
+- **npm**: 9.x или выше
+- **PostgreSQL**: 14.x или выше (для локальной разработки)
+- **Docker**: 20.x или выше (для Docker развертывания)
+- **Docker Compose**: 2.x или выше
 
 ### 1. Клонирование репозитория
 
@@ -94,7 +101,7 @@ NODE_ENV=development
 PORT=5000
 
 # Telegram Bot (опционально)
-TELEGRAM_BOT_TOKEN=******
+TELEGRAM_BOT_TOKEN=8282399971:AAFbpw6W9XbMWB3Zzvfmei98HEJaf-1YPys
 
 # Minio
 MINIO_ENDPOINT=minio
@@ -113,6 +120,8 @@ ENABLE_TEST_LOGIN=true
 ### 6. Запуск приложения
 
 ```bash
+#инициализация бд
+npm run db:push
 # Development режим с hot-reload
 npm run dev
 
@@ -185,7 +194,28 @@ npx playwright test e2e/folder-management.spec.ts
 # Debug режим
 npx playwright test --debug
 ```
+## Структура проекта
 
+```
+pdfshare/
+├── client/               # Frontend код
+│   ├── src/
+│   │   ├── components/  # React компоненты
+│   │   ├── pages/       # Страницы
+│   │   ├── store/       # Redux store
+│   │   └── lib/         # Утилиты
+├── server/              # Backend код
+│   ├── routes.ts        # API routes
+│   ├── storage.ts       # Storage interface
+│   └── objectAcl.ts     # ACL система
+├── shared/              # Общий код
+│   └── schema.ts        # Drizzle схема
+├── e2e/                 # E2E тесты
+├── nginx/               # Nginx конфигурация
+├── docker-compose.yml   # Docker Compose
+├── Dockerfile           # Docker образ
+└── DEPLOYMENT.md        # Руководство по деплою
+```
 ## Архитектура
 
 ### База данных (shared/schema.ts)
