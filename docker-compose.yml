@@ -19,10 +19,10 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
-      MINIO_SSL: false
+      MINIO_SSL: "false"
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin123
-      ENABLE_TEST_LOGIN: false
+      ENABLE_TEST_LOGIN: "false"
     volumes:
       - app_logs:/app/logs
     healthcheck:
