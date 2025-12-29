@@ -2,17 +2,14 @@
 # Global cache and settings
 # ===============================
 
-# Путь к кэшу Nginx (том подключен из docker-compose)
 proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=my_cache:10m max_size=1g inactive=60m use_temp_path=off;
 
-# Управление кэшем по типу контента
 map $sent_http_content_type $expires {
     "text/html" epoch;
     "text/html; charset=utf-8" epoch;
     default 30d; # всё остальное кэшировать 30 дней
 }
 
-# Gzip сжатие
 gzip on;
 gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
 gzip_min_length 256;
@@ -23,24 +20,27 @@ gzip_proxied any;
 # HTTP → HTTPS redirect
 # ===============================
 
-# Редирект www → https
+# Редирект www → основной домен
 server {
     listen ${NGINX_PORT_1};
     server_name www.${DOMAIN};
+
     return 301 https://${DOMAIN}$request_uri;
 }
 
-# Редирект без www → https
+# Основной HTTP сервер для ACME
 server {
-    listen 80;
+    listen ${NGINX_PORT_1};
     server_name ${DOMAIN};
 
+    # Let's Encrypt ACME challenge
     location ^~ /.well-known/acme-challenge/ {
         root /tmp/letsencrypt/www;
         default_type "text/plain";
         try_files $uri =404;
     }
 
+    # Все остальные запросы редиректим на HTTPS
     location / {
         return 301 https://${DOMAIN}$request_uri;
     }
@@ -81,9 +81,11 @@ server {
     proxy_cache_valid 200 1h;
     proxy_cache_use_stale error timeout updating;
 
-    # Let's Encrypt challenge
-    location /.well-known/acme-challenge {
+    # Let's Encrypt ACME challenge
+    location ^~ /.well-known/acme-challenge/ {
         root /tmp/letsencrypt/www;
+        default_type "text/plain";
+        try_files $uri =404;
     }
 
     # Прокси к Spring Boot
@@ -97,15 +99,16 @@ server {
         proxy_set_header X-Forwarded-Port 443;
     }
 
+    # Статические файлы фронтенда
     location / {
-      root /usr/share/nginx/html/;
-      index index.html;
-      try_files $uri /index.html;
+        root /usr/share/nginx/html/;
+        index index.html;
+        try_files $uri /index.html;
 
-      location ~* \.(?:ico|css|js|gif|jpe?g|png|woff2?|eot|ttf|svg)$ {
-          expires 30d;
-          access_log off;
-          add_header Cache-Control "public";
-      }
+        location ~* \.(?:ico|css|js|gif|jpe?g|png|woff2?|eot|ttf|svg)$ {
+            expires 30d;
+            access_log off;
+            add_header Cache-Control "public";
+        }
     }
 }

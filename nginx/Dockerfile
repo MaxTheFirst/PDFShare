@@ -10,8 +10,6 @@ RUN chmod +x /scripts/generate_conf.sh
 
 COPY nginx.conf.template /etc/nginx/nginx.conf.template
 COPY ssl-params.conf /etc/nginx/ssl-params.conf
-COPY certs/fullchain.pem /etc/nginx/certs/fullchain.pem
-COPY certs/privkey.pem /etc/nginx/certs/privkey.pem
 
 COPY www/ /usr/share/nginx/html/
 
