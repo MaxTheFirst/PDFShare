@@ -105,6 +105,8 @@ services:
   letsencrypt:
     image: gordonchan/auto-letsencrypt
     container_name: letsencrypt
+    depends_on:
+      - nginx
     volumes:
       - pdfshare_data_letsencrypt_log:/var/log/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock
