@@ -11,7 +11,7 @@ services:
       minio:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://pdfshare:pdfshare_password@db:5432/pdfshare
+      DATABASE_URL: postgresql://pdfshare:pdfshare_password@pdfshare-db:5432/pdfshare
       DOMAIN: ${DOMAIN}
       NODE_ENV: production
       PORT: ${PORT}
