@@ -32,15 +32,18 @@ server {
 
 # Редирект без www → https
 server {
-    listen ${NGINX_PORT_1};
+    listen 80;
     server_name ${DOMAIN};
 
-    # Let's Encrypt challenge
-    location /.well-known/acme-challenge {
+    location ^~ /.well-known/acme-challenge/ {
         root /tmp/letsencrypt/www;
+        default_type "text/plain";
+        try_files $uri =404;
     }
 
-    return 301 https://${DOMAIN}$request_uri;
+    location / {
+        return 301 https://${DOMAIN}$request_uri;
+    }
 }
 
 # ===============================
