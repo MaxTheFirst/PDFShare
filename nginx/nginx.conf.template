@@ -81,6 +81,10 @@ server {
     proxy_cache_valid 200 1h;
     proxy_cache_use_stale error timeout updating;
 
+    # Статика SPA
+    root /usr/share/nginx/html;
+    index index.html;
+
     # ACME
     location ^~ /.well-known/acme-challenge/ {
         root /tmp/letsencrypt/www;
@@ -98,10 +102,6 @@ server {
         proxy_set_header X-Forwarded-Proto https;
         proxy_set_header X-Forwarded-Port 443;
     }
-
-    # Статика SPA
-    root /usr/share/nginx/html;
-    index index.html;
 
     # Кэш для статики
     location ~* \.(?:ico|css|js|gif|jpe?g|png|woff2?|eot|ttf|svg)$ {
