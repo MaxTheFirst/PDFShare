@@ -39,6 +39,7 @@ app.use(express.json({
   }
 }));
 app.use(express.urlencoded({ extended: false }));
+app.set("trust proxy", 1);
 
 app.use((req, res, next) => {
   const start = Date.now();
