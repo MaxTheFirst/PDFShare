@@ -1,10 +1,12 @@
-FROM node:20-alpine AS builder
+FROM node:20-alpine AS frontend-builder
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci
 
-COPY . .
+COPY client ./client
+COPY shared ./shared
+COPY components.json postcss.config.js tailwind.config.ts tsconfig.json vite.config.ts ./
 
 RUN npm run build:client
 
@@ -23,5 +25,7 @@ COPY nginx/nginx.conf.template /etc/nginx/nginx.conf.template
 COPY nginx/ssl-params.conf /etc/nginx/ssl-params.conf
 COPY nginx/certs/fullchain.pem /etc/nginx/certs/fullchain.pem
 COPY nginx/certs/privkey.pem /etc/nginx/certs/privkey.pem
+
+COPY --from=frontend-builder /app/dist/public/ /home/web/www/
 
 CMD ["/bin/sh", "-c", "/scripts/generate_conf.sh && nginx -g 'daemon off;'"]
