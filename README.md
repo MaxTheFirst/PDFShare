@@ -21,6 +21,13 @@ PDF файлообменник с интеграцией Telegram и систе�
 - **Язык интерфейса**: Русский
 
 ## Запуск
+### Минимальные требования
+
+- **Node.js**: 18.x или выше
+- **npm**: 9.x или выше
+- **PostgreSQL**: 14.x или выше (для локальной разработки)
+- **Docker**: 20.x или выше (для Docker развертывания)
+- **Docker Compose**: 2.x или выше
 
 ### 1. Клонирование репозитория
 
@@ -28,98 +35,33 @@ PDF файлообменник с интеграцией Telegram и систе�
 git clone <repository-url>
 cd pdfshare
 ```
-
-### 2. Установка зависимостей
+### 2. Переключаем ветку
+В main - для production. Для локального запуска:
+```bash
+git checkout test
+```
+### 3. Установка зависимостей
 
 ```bash
 npm install
 ```
 
-### 3. Тестовый docker
-*В корне docker-compose.yml для production. Для тестов можно поднять отдельно.* \
-**docker-compose.yml:**
-```version: '3.8'
-
-services:
-  minio:
-    image: minio/minio
-    container_name: minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
-    ports:
-      - "9000:9000"  # API порт
-      - "9001:9001"  # Console порт
-    volumes:
-      - minio_data:/data
-    networks:
-      - platform-net
-  postgres:
-    image: postgres:13
-    container_name: postgres
-    restart: always
-    environment:
-      POSTGRES_DB: pdfshare_dev
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      - platform-net
-
-volumes:
-  minio_data:
-  postgres_data:
-
-networks:
-  platform-net:
-    driver: bridge
-```
-Запуск: `docker-compose up --build`
-### 4. Настройка переменных окружения
-*.env для тестов:*
-```
-HOST=127.0.0.1
-PORT=5000
-DOMAIN=localhost
-
-# Database
-DATABASE_URL=postgresql://postgres:postgres123@localhost:5432/pdfshare_dev
-
-# Server
-NODE_ENV=development
-PORT=5000
-
-# Telegram Bot (опционально)
-TELEGRAM_BOT_TOKEN=******
-
-# Minio
-MINIO_ENDPOINT=minio
-MINIO_PORT=9000
-MINIO_SSL=false
-MINIO_BUCKET=uploads
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin123
-
-# Session
-SESSION_SECRET=your-random-secret-here
-
-# Testing (для E2E тестов)
-ENABLE_TEST_LOGIN=true
-```
-### 6. Запуск приложения
+### 4. Docker
+В отдельном терминале запускаем докер: `docker-compose up --build`
+### 5. Ngrok
+В отдельном терминале запускаем ngrok для проксирования (нужно для работы бота - регистрация через него): `ngrok http 127.0.0.1:5000`
+### 6. Переменные окружения
+Меняем `DOMAIN` в файле .env и остальные, если нужно.
+### 7. Запуск приложения
 
 ```bash
+#инициализация бд
+npm run db:push
 # Development режим с hot-reload
 npm run dev
 
 # Приложение запустится на http://localhost:5000
 ```
-*Примечание: для входа в аккаунт требуется публичный адрес - можно использовать ngrok.*
-
 ## Запуск всех тестов
 
 ### Unit-тесты (Jest)
@@ -185,7 +127,28 @@ npx playwright test e2e/folder-management.spec.ts
 # Debug режим
 npx playwright test --debug
 ```
+## Структура проекта
 
+```
+pdfshare/
+├── client/               # Frontend код
+│   ├── src/
+│   │   ├── components/  # React компоненты
+│   │   ├── pages/       # Страницы
+│   │   ├── store/       # Redux store
+│   │   └── lib/         # Утилиты
+├── server/              # Backend код
+│   ├── routes.ts        # API routes
+│   ├── storage.ts       # Storage interface
+│   └── objectAcl.ts     # ACL система
+├── shared/              # Общий код
+│   └── schema.ts        # Drizzle схема
+├── e2e/                 # E2E тесты
+├── nginx/               # Nginx конфигурация
+├── docker-compose.yml   # Docker Compose
+├── Dockerfile           # Docker образ
+└── DEPLOYMENT.md        # Руководство по деплою
+```
 ## Архитектура
 
 ### База данных (shared/schema.ts)
@@ -245,8 +208,7 @@ npx playwright test --debug
 - **Подписка на публичных страницах**: Кнопки subscribe/unsubscribe на /shared/file/:token и /shared/folder/:token (только для авторизованных пользователей)
 
 ### Telegram Bot (server/telegramBot.ts)
-- **Webhook режим** - бот работает через webhook вместо polling
-- Webhook URL: `https://{REPLIT_DEV_DOMAIN}/webhook/{BOT_TOKEN}`
+- **Webhook режим** - бот работает через webhook
 - Русскоязычный интерфейс
 - Команды: /start, /subscriptions, /help
 - Уведомления о новых файлах и обновлениях

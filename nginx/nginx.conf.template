@@ -1,13 +1,11 @@
 proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=my_cache:10m max_size=1g inactive=60m use_temp_path=off;
 
-# Управление кэшем по типу контента
 map $sent_http_content_type $expires {
     "text/html" epoch;
     "text/html; charset=utf-8" epoch;
     default 30d;
 }
 
-# Gzip сжатие
 gzip on;
 gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
 gzip_min_length 256;
@@ -17,6 +15,7 @@ gzip_proxied any;
 server {
     listen ${NGINX_PORT_1};
     server_name www.${DOMAIN};
+
     return 301 https://${DOMAIN}$request_uri;
 }
 
@@ -24,20 +23,17 @@ server {
     listen ${NGINX_PORT_1};
     server_name ${DOMAIN};
 
-    location ^~ /api/ {
-        proxy_pass http://${APP_CONTAINER}:${APP_PORT}/api/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-    }
-
-    # Let's Encrypt challenge
-    location /.well-known/acme-challenge {
+    # Let's Encrypt ACME challenge
+    location ^~ /.well-known/acme-challenge/ {
         root /tmp/letsencrypt/www;
+        default_type "text/plain";
+        try_files $uri =404;
     }
 
-    return 301 https://${DOMAIN}$request_uri;
+    # Все остальные запросы редиректим на HTTPS
+    location / {
+        return 301 https://${DOMAIN}$request_uri;
+    }
 }
 
 server {
@@ -53,7 +49,7 @@ server {
 
 # Основной сервер с SSL
 server {
-    listen ${NGINX_PORT_2} ssl http2;
+    listen ${NGINX_PORT_2} ssl http2 default_server;
     server_name ${DOMAIN};
 
     ssl_certificate /etc/nginx/certs/fullchain.pem;
@@ -73,14 +69,29 @@ server {
 
     location ^~ /.well-known/acme-challenge/ {
         root /tmp/letsencrypt/www;
+        default_type "text/plain";
+        try_files $uri =404;
     }
 
+    # API
     location /api/ {
         proxy_pass http://${APP_CONTAINER}:${APP_PORT}/api/;
+
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+
+        proxy_cache off;
+        add_header Cache-Control "no-store";
+    }
+
+    # Кэш для статики
+    location ~* \.(?:ico|css|js|gif|jpe?g|png|woff2?|eot|ttf|svg)$ {
+        expires 30d;
+        access_log off;
+        add_header Cache-Control "public";
     }
 
     location ~* \.(?:ico|css|js|gif|jpe?g|png|woff2?|eot|ttf|svg)$ {
@@ -90,14 +101,6 @@ server {
     }
 
     location / {
-      root /usr/share/nginx/html/;
-      index index.html;
-      try_files $uri /index.html;
-
-      location ~* \.(?:ico|css|js|gif|jpe?g|png|woff2?|eot|ttf|svg)$ {
-          expires 30d;
-          access_log off;
-          add_header Cache-Control "public";
-      }
+        try_files $uri /index.html;
     }
 }

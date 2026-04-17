@@ -16,15 +16,16 @@ ENV TZ Europe/Moscow
 
 RUN apk update && apk add openssl
 RUN rm /etc/nginx/conf.d/default.conf && mkdir -p /home/web/www
-COPY --from=builder /app/dist/public /usr/share/nginx/html
 
-COPY nginx/scripts/generate_conf.sh /scripts/generate_conf.sh
+COPY scripts/generate_conf.sh /scripts/generate_conf.sh
 RUN chmod +x /scripts/generate_conf.sh
 
-COPY nginx/nginx.conf.template /etc/nginx/nginx.conf.template
-COPY nginx/ssl-params.conf /etc/nginx/ssl-params.conf
-COPY nginx/certs/fullchain.pem /etc/nginx/certs/fullchain.pem
-COPY nginx/certs/privkey.pem /etc/nginx/certs/privkey.pem
+COPY nginx.conf.template /etc/nginx/nginx.conf.template
+COPY ssl-params.conf /etc/nginx/ssl-params.conf
+COPY certs/fullchain.pem /etc/nginx/certs/fullchain.pem
+COPY certs/privkey.pem /etc/nginx/certs/privkey.pem
+
+COPY www/ /usr/share/nginx/html/
 
 COPY --from=frontend-builder /app/dist/public/ /home/web/www/
 
