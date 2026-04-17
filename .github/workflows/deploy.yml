@@ -1,0 +1,29 @@
+name: Deploy Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy application
+    runs-on: self-hosted
+    services:
+      docker:
+        image: docker:dind
+        options: >-
+          --privileged
+          --dns 8.8.8.8
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build and deploy Docker Compose
+        run: |
+          echo "Stopping existing containers..."
+          docker-compose down -v
+          echo "Building and starting containers..."
+          docker-compose up -d --build

@@ -73,7 +73,9 @@ services:
       start_period: 10s
 
   nginx:
-    build: ./nginx
+    build: 
+      context: .
+      dockerfile: nginx/Dockerfile
     container_name: nginx
     depends_on:
       - app
