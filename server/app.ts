@@ -13,7 +13,7 @@ import express, {
 } from "express";
 
 import { registerRoutes } from "./routes";
-import { setupTelegramWebhook } from "./telegramBot";
+import { setupTelegramLongPolling } from "./telegramBot";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -74,7 +74,7 @@ export default async function runApp(
 
   const server = await registerRoutes(app);
 
-  await setupTelegramWebhook(app);
+  await setupTelegramLongPolling();
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

@@ -1,6 +1,5 @@
 import TelegramBot from "node-telegram-bot-api";
 import { storage } from "./storage";
-import type { Express } from "express";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -8,67 +7,80 @@ if (!BOT_TOKEN) {
   console.warn("TELEGRAM_BOT_TOKEN не установлен. Telegram бот не будет работать.");
 }
 
-export const bot = BOT_TOKEN ? new TelegramBot(BOT_TOKEN) : null;
+export const bot = BOT_TOKEN
+  ? new TelegramBot(BOT_TOKEN, {
+      polling: {
+        autoStart: false,
+        interval: 300,
+        params: {
+          timeout: 10,
+        }
+      },
+    })
+  : null;
 
-export async function setupTelegramWebhook(app: Express) {
+let isTelegramBotStarted = false;
+let areTelegramBotHandlersRegistered = false;
+
+export async function setupTelegramLongPolling() {
   if (!bot || !BOT_TOKEN) {
     console.warn("Telegram бот не инициализирован из-за отсутствия токена");
     return;
   }
 
-  const webhookPath = `/api/webhook/secret456u8iopoiutsd`;
-  const domain = process.env.DOMAIN;
-  
-  if (!domain) {
-    console.warn("DOMAIN не установлен, webhook не будет настроен");
+  if (isTelegramBotStarted) {
     return;
   }
 
-  const webhookUrl = `https://${domain}${webhookPath}`;
-
   try {
-    await bot.setWebHook(webhookUrl);
-    console.log(`✅ Telegram webhook установлен: ${webhookUrl}`);
+    await bot.deleteWebHook();
+    console.log("✅ Telegram webhook удален");
   } catch (error) {
-    console.log("❌ Ошибка установки webhook!");
+    console.error("❌ Ошибка удаления Telegram webhook:", error);
   }
 
-  app.post(webhookPath, (req, res) => {
-    console.log("📨 Получен webhook от Telegram:", JSON.stringify(req.body, null, 2));
-    bot.processUpdate(req.body);
-    res.sendStatus(200);
-  });
-
-  bot.on("message", async (msg) => {
-    console.log("💬 Получено сообщение от пользователя:", {
-      chatId: msg.chat.id,
-      from: msg.from,
-      text: msg.text
+  if (!areTelegramBotHandlersRegistered) {
+    bot.on("polling_error", (error) => {
+      console.error("❌ Ошибка Telegram long-polling:", error);
     });
-    
-    const chatId = msg.chat.id;
-    const text = msg.text;
 
-    if (!text) {
-      console.log("⚠️ Сообщение без текста, игнорируем");
-      return;
-    }
+    bot.on("message", async (msg) => {
+      console.log("💬 Получено сообщение от пользователя:", {
+        chatId: msg.chat.id,
+        from: msg.from,
+        text: msg.text
+      });
+      
+      const text = msg.text;
 
-    if (text.startsWith("/start")) {
-      console.log("🚀 Обработка команды /start");
-      await handleStart(msg);
-    } else if (text === "/subscriptions") {
-      console.log("📋 Обработка команды /subscriptions");
-      await handleSubscriptions(msg);
-    } else if (text === "/help") {
-      console.log("❓ Обработка команды /help");
-      await handleHelp(msg);
-    } else {
-      console.log("⚠️ Неизвестная команда:", text);
-    }
+      if (!text) {
+        console.log("⚠️ Сообщение без текста, игнорируем");
+        return;
+      }
+
+      if (text.startsWith("/start")) {
+        console.log("🚀 Обработка команды /start");
+        await handleStart(msg);
+      } else if (text === "/subscriptions") {
+        console.log("📋 Обработка команды /subscriptions");
+        await handleSubscriptions(msg);
+      } else if (text === "/help") {
+        console.log("❓ Обработка команды /help");
+        await handleHelp(msg);
+      } else {
+        console.log("⚠️ Неизвестная команда:", text);
+      }
+    });
+
+    areTelegramBotHandlersRegistered = true;
+  }
+
+  await bot.startPolling({
+    restart: true,
   });
 
-  console.log("✅ Telegram бот успешно запущен (webhook режим)");
+  isTelegramBotStarted = true;
+  console.log("✅ Telegram бот успешно запущен (long-polling режим)");
 }
 
 async function handleStart(msg: TelegramBot.Message) {

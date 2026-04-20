@@ -33,6 +33,11 @@ services:
       start_period: 40s
     networks:
       - pdfshare-net
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '10'
 
   postgres:
     build:
@@ -55,6 +60,11 @@ services:
       start_period: 10s
     networks:
       - pdfshare-net
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '10'
 
   minio:
     image: minio/minio
@@ -73,6 +83,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '10'
 
   nginx:
     build: 

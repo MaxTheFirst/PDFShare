@@ -208,7 +208,7 @@ pdfshare/
 - **Подписка на публичных страницах**: Кнопки subscribe/unsubscribe на /shared/file/:token и /shared/folder/:token (только для авторизованных пользователей)
 
 ### Telegram Bot (server/telegramBot.ts)
-- **Webhook режим** - бот работает через webhook
+- **Long-polling режим** - бот получает обновления через getUpdates
 - Русскоязычный интерфейс
 - Команды: /start, /subscriptions, /help
 - Уведомления о новых файлах и обновлениях
