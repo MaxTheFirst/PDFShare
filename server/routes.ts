@@ -46,6 +46,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     throw new Error("SESSION_SECRET environment variable is required");
   }
 
+  app.get("/api/health", (_req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
+
   const PgSession = connectPgSimple(session);
 
   app.use(
