@@ -55,6 +55,16 @@ export default function Landing() {
               </svg>
               Войти через Telegram
             </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => setLocation('/docs')}
+              className="gap-2 min-h-12 px-8"
+              data-testid="button-docs"
+            >
+              <FileText className="w-5 h-5" />
+              Документация
+            </Button>
           </div>
 
           <p className="text-sm text-muted-foreground">

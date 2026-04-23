@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import type { Express } from "express";
+import type { Express, NextFunction, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import multer from 'multer';
 import session from "express-session";
@@ -20,10 +20,13 @@ declare module "express-session" {
   }
 }
 
+const MAX_UPLOAD_SIZE_BYTES = 100 * 1024 * 1024;
+const MAX_UPLOAD_SIZE_LABEL = "100 МБ";
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 512 * 1024 * 1024,
+    fileSize: MAX_UPLOAD_SIZE_BYTES,
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/pdf') {
@@ -33,6 +36,20 @@ const upload = multer({
     }
   }
 });
+
+function uploadPdf(req: Request, res: Response, next: NextFunction) {
+  upload.single('file')(req, res, (error) => {
+    if (!error) {
+      return next();
+    }
+
+    if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({ error: `Размер файла не должен превышать ${MAX_UPLOAD_SIZE_LABEL}` });
+    }
+
+    return res.status(400).json({ error: error.message || "Не удалось загрузить файл" });
+  });
+}
 
 function isAuthenticated(req: any, res: any, next: any) {
   if (req.session.userId) {
@@ -302,7 +319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ exists });
   });
 
-  app.post("/api/folders/:folderId/files", isAuthenticated, upload.single('file'), async (req, res) => {
+  app.post("/api/folders/:folderId/files", isAuthenticated, uploadPdf, async (req, res) => {
     const { folderId } = req.params;
     const { name } = req.body;
 

@@ -2,8 +2,12 @@ name: Test Workflow
 
 on:
   push:
-    branches-ignore:
-      - main
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+  merge_group:
 
 jobs:
   unit-tests:
@@ -13,4 +17,3 @@ jobs:
       - uses: actions/setup-node@v3
       - run: npm ci
       - run: node --experimental-vm-modules node_modules/jest/bin/jest.js
-
