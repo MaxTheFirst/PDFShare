@@ -118,7 +118,6 @@ services:
       - pdfshare_data_nginx_logs:/var/log/nginx/
       - pdfshare_data_nginx_certs:/etc/nginx/certs
       - pdfshare_data_letsencrypt_www:/tmp/letsencrypt/www
-      - pdfshare_data_nginx_www:/home/web/www
       - pdfshare_data_nginx_cache:/var/cache/nginx
     logging:
       driver: 'json-file'
@@ -162,8 +161,6 @@ volumes:
   app_logs:
     driver: local
   pdfshare_data_db:
-    driver: local
-  pdfshare_data_nginx_www:
     driver: local
   pdfshare_data_nginx_logs:
     driver: local
