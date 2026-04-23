@@ -4,16 +4,10 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
-    types:
-      - closed
 
 jobs:
   deploy:
     name: Deploy application
-    if: github.event_name == 'push' || github.event.pull_request.merged == true
     runs-on: self-hosted
     
     steps:
