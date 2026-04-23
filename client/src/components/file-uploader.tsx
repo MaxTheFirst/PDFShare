@@ -22,6 +22,9 @@ import { Upload, FileText, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 
+const MAX_UPLOAD_SIZE_BYTES = 100 * 1024 * 1024;
+const MAX_UPLOAD_SIZE_LABEL = "100 МБ";
+
 interface FileUploaderProps {
   folderId: string;
   onUploadComplete?: () => void;
@@ -40,9 +43,23 @@ export function FileUploader({ folderId, onUploadComplete }: FileUploaderProps) 
     accept: {
       'application/pdf': ['.pdf'],
     },
+    maxSize: MAX_UPLOAD_SIZE_BYTES,
     onDrop: (acceptedFiles) => {
       setSelectedFiles(acceptedFiles);
       setShowDialog(true);
+    },
+    onDropRejected: (fileRejections) => {
+      const hasOversizedFile = fileRejections.some(({ errors }) =>
+        errors.some((error) => error.code === "file-too-large")
+      );
+
+      toast({
+        title: "Ошибка",
+        description: hasOversizedFile
+          ? `Размер файла не должен превышать ${MAX_UPLOAD_SIZE_LABEL}`
+          : "Можно загружать только PDF файлы",
+        variant: "destructive",
+      });
     },
   });
 
@@ -83,7 +100,8 @@ export function FileUploader({ folderId, onUploadComplete }: FileUploaderProps) 
         });
 
         if (!storageResponse.ok) {
-          throw new Error('Не удалось загрузить файл в хранилище');
+          const errorData = await storageResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Не удалось загрузить файл в хранилище');
         }
 
         setProgress(((i + 1) / selectedFiles.length) * 100);
