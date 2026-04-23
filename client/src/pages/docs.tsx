@@ -92,9 +92,6 @@ export default function Docs() {
 
       <main className="mx-auto max-w-5xl space-y-14 px-4 py-12">
         <section className="space-y-6">
-          <Badge variant="secondary" className="w-fit">
-            Описание
-          </Badge>
           <div className="space-y-4">
             <h2 className="max-w-3xl text-4xl font-semibold tracking-tight md:text-5xl">
               PDF-файлообменник с интеграцией Telegram
