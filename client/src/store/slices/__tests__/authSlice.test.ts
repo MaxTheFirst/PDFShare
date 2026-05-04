@@ -12,6 +12,8 @@ describe('authSlice', () => {
     id: '1',
     telegramId: '123456',
     username: 'testuser',
+    email: 'test@example.com',
+    isEmailVerified: true,
     firstName: 'Test',
     lastName: 'User',
     createdAt: new Date('2024-01-01'),

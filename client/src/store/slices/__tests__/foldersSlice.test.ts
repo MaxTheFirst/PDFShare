@@ -41,6 +41,7 @@ describe('foldersSlice', () => {
         name: 'test.pdf',
         folderId: '2',
         ownerId: 'user1',
+        shareToken: 'share-token-1',
         size: 1024,
         version: 1,
         createdAt: new Date('2024-01-01'),

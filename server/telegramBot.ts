@@ -1,5 +1,6 @@
 import TelegramBot from "node-telegram-bot-api";
 import { storage } from "./storage";
+import { buildUniqueUsername } from "./usernames";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -95,9 +96,15 @@ async function handleStart(msg: TelegramBot.Message) {
   let user = await storage.getUserByTelegramId(telegramId);
   
   if (!user) {
+    const uniqueUsername = await buildUniqueUsername(
+      msg.from?.username || `user_${telegramId}`,
+      `user_${telegramId}`
+    );
+
     user = await storage.createUser({
       telegramId,
-      username: msg.from?.username || `user_${telegramId}`,
+      username: uniqueUsername,
+      email: null,
       firstName: msg.from?.first_name,
       lastName: msg.from?.last_name,
     });

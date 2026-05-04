@@ -1,11 +1,14 @@
 import {
   users,
+  userCredentials,
   folders,
   files,
   subscriptions,
   loginTokens,
+  emailVerificationTokens,
   type User,
   type InsertUser,
+  type InsertUserCredential,
   type Folder,
   type InsertFolder,
   type File,
@@ -13,6 +16,7 @@ import {
   type Subscription,
   type InsertSubscription,
   type LoginToken,
+  type EmailVerificationToken,
   type FolderWithFiles,
 } from "@shared/schema";
 import { db } from "./db";
@@ -24,7 +28,13 @@ export interface IStorage {
   // Users
   getUser(id: string): Promise<User | undefined>;
   getUserByTelegramId(telegramId: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserWithPasswordByUsername(username: string): Promise<{ user: User; passwordHash: string } | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  createUserCredentials(credentials: InsertUserCredential): Promise<void>;
+  deleteUser(id: string): Promise<void>;
+  markUserEmailAsVerified(userId: string): Promise<User | undefined>;
 
   // Folders
   getFoldersByUserId(userId: string): Promise<Folder[]>;
@@ -59,6 +69,11 @@ export interface IStorage {
   validateLoginToken(token: string): Promise<User | null>;
   markLoginTokenAsUsed(token: string): Promise<void>;
   cleanupExpiredTokens(): Promise<void>;
+
+  // Email Verification Tokens
+  createEmailVerificationToken(userId: string, email: string, expiresInHours?: number): Promise<EmailVerificationToken>;
+  validateEmailVerificationToken(token: string): Promise<User | null>;
+  cleanupExpiredEmailVerificationTokens(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -76,9 +91,65 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async getUserWithPasswordByUsername(
+    username: string
+  ): Promise<{ user: User; passwordHash: string } | undefined> {
+    const [result] = await db
+      .select({
+        user: users,
+        passwordHash: userCredentials.passwordHash,
+      })
+      .from(users)
+      .innerJoin(userCredentials, eq(userCredentials.userId, users.id))
+      .where(eq(users.username, username));
+
+    if (!result) {
+      return undefined;
+    }
+
+    return {
+      user: result.user,
+      passwordHash: result.passwordHash,
+    };
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
     return user;
+  }
+
+  async createUserCredentials(credentials: InsertUserCredential): Promise<void> {
+    await db.insert(userCredentials).values(credentials);
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
+
+  async markUserEmailAsVerified(userId: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ isEmailVerified: true })
+      .where(eq(users.id, userId))
+      .returning();
+
+    return user || undefined;
   }
 
   // Folders
@@ -358,6 +429,65 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(loginTokens)
       .where(lt(loginTokens.expiresAt, new Date()));
+  }
+
+  async createEmailVerificationToken(
+    userId: string,
+    email: string,
+    expiresInHours: number = 24
+  ): Promise<EmailVerificationToken> {
+    const token = nanoid(48);
+    const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
+
+    const [emailVerificationToken] = await db
+      .insert(emailVerificationTokens)
+      .values({
+        token,
+        userId,
+        email,
+        expiresAt,
+      })
+      .returning();
+
+    return emailVerificationToken;
+  }
+
+  async validateEmailVerificationToken(token: string): Promise<User | null> {
+    return db.transaction(async (tx: any) => {
+      const updatedTokens = await tx
+        .update(emailVerificationTokens)
+        .set({ used: true })
+        .where(
+          and(
+            eq(emailVerificationTokens.token, token),
+            eq(emailVerificationTokens.used, false),
+            gt(emailVerificationTokens.expiresAt, new Date())
+          )
+        )
+        .returning();
+
+      if (updatedTokens.length === 0) {
+        return null;
+      }
+
+      const [verificationToken] = updatedTokens;
+      const [user] = await tx
+        .update(users)
+        .set({
+          email: verificationToken.email,
+          isEmailVerified: true,
+        })
+        .where(eq(users.id, verificationToken.userId))
+        .returning();
+
+      return user || null;
+    });
+  }
+
+  async cleanupExpiredEmailVerificationTokens(): Promise<void> {
+    await db
+      .delete(emailVerificationTokens)
+      .where(lt(emailVerificationTokens.expiresAt, new Date()));
   }
 }
 
