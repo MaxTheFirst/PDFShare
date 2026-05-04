@@ -1,3 +1,5 @@
+import { lookup } from "dns/promises";
+import { isIP } from "net";
 import tls from "tls";
 
 type MailOptions = {
@@ -10,6 +12,12 @@ type MailOptions = {
 type SmtpResponse = {
   code: number;
   message: string;
+};
+
+type ConnectionTarget = {
+  address: string;
+  family: number;
+  servername: string;
 };
 
 function getRequiredEnv(name: string): string {
@@ -41,6 +49,21 @@ function getNumberEnv(name: string, defaultValue: number): number {
 
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : defaultValue;
+}
+
+function getPreferredFamilies(): number[] {
+  const value = process.env.MAIL_FAMILY?.trim();
+
+  if (!value) {
+    return [4, 6];
+  }
+
+  const families = value
+    .split(",")
+    .map((item) => Number(item.trim()))
+    .filter((family): family is number => family === 4 || family === 6);
+
+  return families.length > 0 ? families : [4, 6];
 }
 
 function encodeHeader(value: string): string {
@@ -120,34 +143,65 @@ function debugLog(message: string) {
   }
 }
 
-export function isMailConfigured(): boolean {
-  return Boolean(process.env.MAIL_HOST && process.env.MAIL_USERNAME && process.env.MAIL_PASSWORD);
-}
-
-export async function sendMail(options: MailOptions): Promise<void> {
-  const host = getRequiredEnv("MAIL_HOST");
-  const port = getNumberEnv("MAIL_PORT", 465);
-  const username = getRequiredEnv("MAIL_USERNAME");
-  const password = getRequiredEnv("MAIL_PASSWORD");
-  const secure = getBooleanEnv("MAIL_SECURE", port === 465);
-  const connectionTimeout = getNumberEnv("MAIL_CONNECTION_TIMEOUT", 5000);
-  const timeout = getNumberEnv("MAIL_TIMEOUT", 5000);
-  const writeTimeout = getNumberEnv("MAIL_WRITE_TIMEOUT", 5000);
-  const fromAddress = process.env.MAIL_FROM_ADDRESS || username;
-
-  if (!secure) {
-    throw new Error("Поддерживается только SMTP по SSL/TLS");
+async function resolveConnectionTargets(host: string): Promise<ConnectionTarget[]> {
+  if (isIP(host)) {
+    return [
+      {
+        address: host,
+        family: isIP(host),
+        servername: host,
+      },
+    ];
   }
 
+  const records = await lookup(host, { all: true });
+  const preferredFamilies = getPreferredFamilies();
+  const uniqueTargets = new Map<string, ConnectionTarget>();
+
+  for (const record of records) {
+    const key = `${record.address}|${record.family}`;
+    if (!uniqueTargets.has(key)) {
+      uniqueTargets.set(key, {
+        address: record.address,
+        family: record.family,
+        servername: host,
+      });
+    }
+  }
+
+  return Array.from(uniqueTargets.values()).sort((left, right) => {
+    const leftPriority = preferredFamilies.indexOf(left.family);
+    const rightPriority = preferredFamilies.indexOf(right.family);
+
+    return leftPriority - rightPriority;
+  });
+}
+
+async function sendMailUsingTarget(
+  target: ConnectionTarget,
+  port: number,
+  username: string,
+  password: string,
+  fromAddress: string,
+  timeout: number,
+  writeTimeout: number,
+  options: MailOptions,
+  connectionTimeout: number
+): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const socket = tls.connect({
-      host,
+      host: target.address,
       port,
-      servername: host,
+      servername: target.servername,
       rejectUnauthorized: true,
-      timeout: connectionTimeout,
     });
-
+    const connectionTimer = setTimeout(() => {
+      fail(
+        new Error(
+          `SMTP соединение с ${target.address}:${port} (IPv${target.family}) превысило таймаут ${connectionTimeout}мс`
+        )
+      );
+    }, connectionTimeout);
     let buffer = "";
     let currentCode: string | null = null;
     let currentLines: string[] = [];
@@ -158,6 +212,7 @@ export async function sendMail(options: MailOptions): Promise<void> {
     }> = [];
 
     const fail = (error: Error) => {
+      clearTimeout(connectionTimer);
       while (waiters.length > 0) {
         waiters.shift()?.reject(error);
       }
@@ -268,6 +323,7 @@ export async function sendMail(options: MailOptions): Promise<void> {
     });
 
     socket.on("close", (hadError) => {
+      clearTimeout(connectionTimer);
       if (!hadError && waiters.length > 0) {
         fail(new Error("SMTP соединение было закрыто"));
       }
@@ -275,6 +331,9 @@ export async function sendMail(options: MailOptions): Promise<void> {
 
     socket.once("secureConnect", async () => {
       try {
+        clearTimeout(connectionTimer);
+        debugLog(`Connected to ${target.address}:${port} (IPv${target.family})`);
+
         const greeting = await nextResponse();
         if (greeting.code !== 220) {
           throw new Error(`SMTP ошибка: ${greeting.message}`);
@@ -300,6 +359,56 @@ export async function sendMail(options: MailOptions): Promise<void> {
       }
     });
   });
+}
+
+export function isMailConfigured(): boolean {
+  return Boolean(process.env.MAIL_HOST && process.env.MAIL_USERNAME && process.env.MAIL_PASSWORD);
+}
+
+export async function sendMail(options: MailOptions): Promise<void> {
+  const host = getRequiredEnv("MAIL_HOST");
+  const port = getNumberEnv("MAIL_PORT", 465);
+  const username = getRequiredEnv("MAIL_USERNAME");
+  const password = getRequiredEnv("MAIL_PASSWORD");
+  const secure = getBooleanEnv("MAIL_SECURE", port === 465);
+  const connectionTimeout = getNumberEnv("MAIL_CONNECTION_TIMEOUT", 5000);
+  const timeout = getNumberEnv("MAIL_TIMEOUT", 5000);
+  const writeTimeout = getNumberEnv("MAIL_WRITE_TIMEOUT", 5000);
+  const fromAddress = process.env.MAIL_FROM_ADDRESS || username;
+
+  if (!secure) {
+    throw new Error("Поддерживается только SMTP по SSL/TLS");
+  }
+
+  const targets = await resolveConnectionTargets(host);
+  const errors: string[] = [];
+
+  for (const target of targets) {
+    try {
+      await sendMailUsingTarget(
+        target,
+        port,
+        username,
+        password,
+        fromAddress,
+        timeout,
+        writeTimeout,
+        options,
+        connectionTimeout
+      );
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`${target.address} (IPv${target.family}): ${message}`);
+      debugLog(`Connection attempt failed: ${message}`);
+    }
+  }
+
+  throw new Error(
+    `Не удалось подключиться к SMTP серверу ${host}:${port}. ` +
+      `Проверены адреса: ${errors.join("; ")}. ` +
+      `Если локально всё работает, на сервере обычно виноваты блокировка исходящего SMTP-трафика или проблемы с IPv6.`
+  );
 }
 
 export async function sendVerificationEmail(email: string, token: string, username: string): Promise<void> {
