@@ -9,9 +9,12 @@ import Landing from "@/pages/landing";
 import Explorer from "@/pages/explorer";
 import PDFViewer from "@/pages/pdf-viewer";
 import About from "@/pages/about";
+import Docs from "@/pages/docs";
 import PublicFolder from "@/pages/public-folder";
 import PublicFile from "@/pages/public-file";
 import TelegramLogin from "@/pages/telegram-login";
+import AuthPage from "@/pages/auth";
+import VerifyEmailPage from "@/pages/verify-email";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -22,6 +25,9 @@ function Router() {
       <Route path="/explorer/:folderId" component={Explorer} />
       <Route path="/pdf/:fileId" component={PDFViewer} />
       <Route path="/about" component={About} />
+      <Route path="/docs" component={Docs} />
+      <Route path="/auth" component={AuthPage} />
+      <Route path="/auth/verify-email" component={VerifyEmailPage} />
       <Route path="/auth/telegram-login" component={TelegramLogin} />
       <Route path="/shared/folder/:shareToken" component={PublicFolder} />
       <Route path="/shared/file/:shareToken" component={PublicFile} />

@@ -6,10 +6,20 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  telegramId: varchar("telegram_id").notNull().unique(),
-  username: text("username").notNull(),
+  telegramId: varchar("telegram_id").unique(),
+  username: text("username").notNull().unique(),
+  email: text("email").unique(),
+  isEmailVerified: boolean("is_email_verified").default(false).notNull(),
   firstName: text("first_name"),
   lastName: text("last_name"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const userCredentials = pgTable("user_credentials", {
+  userId: varchar("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  passwordHash: text("password_hash").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -28,6 +38,7 @@ export const files = pgTable("files", {
   name: text("name").notNull(),
   folderId: varchar("folder_id").notNull().references(() => folders.id, { onDelete: "cascade" }),
   ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  shareToken: varchar("share_token").notNull().unique(),
   size: integer("size").notNull(),
   version: integer("version").default(1).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -51,12 +62,27 @@ export const loginTokens = pgTable("login_tokens", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const emailVerificationTokens = pgTable("email_verification_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: varchar("token").notNull().unique(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   folders: many(folders),
   files: many(files),
   subscriptions: many(subscriptions),
   loginTokens: many(loginTokens),
+  emailVerificationTokens: many(emailVerificationTokens),
+  credentials: one(userCredentials, {
+    fields: [users.id],
+    references: [userCredentials.userId],
+  }),
 }));
 
 export const foldersRelations = relations(folders, ({ one, many }) => ({
@@ -103,9 +129,28 @@ export const loginTokensRelations = relations(loginTokens, ({ one }) => ({
   }),
 }));
 
+export const userCredentialsRelations = relations(userCredentials, ({ one }) => ({
+  user: one(users, {
+    fields: [userCredentials.userId],
+    references: [users.id],
+  }),
+}));
+
+export const emailVerificationTokensRelations = relations(emailVerificationTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [emailVerificationTokens.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
+  isEmailVerified: true,
+  createdAt: true,
+});
+
+export const insertUserCredentialsSchema = createInsertSchema(userCredentials).omit({
   createdAt: true,
 });
 
@@ -118,6 +163,7 @@ export const insertFolderSchema = createInsertSchema(folders).omit({
 
 export const insertFileSchema = createInsertSchema(files).omit({
   id: true,
+  shareToken: true,
   createdAt: true,
   updatedAt: true,
   version: true,
@@ -134,9 +180,18 @@ export const insertLoginTokenSchema = createInsertSchema(loginTokens).omit({
   used: true,
 });
 
+export const insertEmailVerificationTokenSchema = createInsertSchema(emailVerificationTokens).omit({
+  id: true,
+  createdAt: true,
+  used: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type UserCredential = typeof userCredentials.$inferSelect;
+export type InsertUserCredential = z.infer<typeof insertUserCredentialsSchema>;
 
 export type Folder = typeof folders.$inferSelect;
 export type InsertFolder = z.infer<typeof insertFolderSchema>;
@@ -149,6 +204,9 @@ export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 
 export type LoginToken = typeof loginTokens.$inferSelect;
 export type InsertLoginToken = z.infer<typeof insertLoginTokenSchema>;
+
+export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
+export type InsertEmailVerificationToken = z.infer<typeof insertEmailVerificationTokenSchema>;
 
 // Extended types with relations
 export type FolderWithFiles = Folder & {

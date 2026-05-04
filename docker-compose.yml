@@ -10,13 +10,27 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: postgresql://pdfshare:pdfshare_password@pdfshare-db:5432/pdfshare
       DOMAIN: ${DOMAIN}
       NODE_ENV: production
-      PORT: ${PORT}
+      PORT: ${PORT:-3000}
       SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      APP_BASE_URL: ${APP_BASE_URL:-}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-465}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_SECURE: ${MAIL_SECURE:-true}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-PDFShare}
+      MAIL_CONNECTION_TIMEOUT: ${MAIL_CONNECTION_TIMEOUT:-5000}
+      MAIL_TIMEOUT: ${MAIL_TIMEOUT:-5000}
+      MAIL_WRITE_TIMEOUT: ${MAIL_WRITE_TIMEOUT:-5000}
+      MAIL_DEBUG: ${MAIL_DEBUG:-false}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_SSL: "false"
@@ -26,16 +40,24 @@ services:
     volumes:
       - app_logs:/app/logs
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://app:3000/api/health"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:$${PORT:-3000}/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     networks:
       - pdfshare-net
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '10'
 
   postgres:
-    image: postgres:14-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    image: pdfshare-postgres:14
     container_name: pdfshare-db
     restart: unless-stopped
     environment:
@@ -44,7 +66,6 @@ services:
       POSTGRES_DB: pdfshare
     volumes:
       - pdfshare_data_db:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pdfshare -d pdfshare"]
       interval: 10s
@@ -53,6 +74,11 @@ services:
       start_period: 10s
     networks:
       - pdfshare-net
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '10'
 
   minio:
     image: minio/minio
@@ -71,16 +97,23 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '10'
 
   nginx:
-    build: ./nginx
+    build: 
+      context: .
+      dockerfile: nginx/Dockerfile
     container_name: nginx
     depends_on:
       - app
     environment:
       - DOMAIN=${DOMAIN}
       - APP_CONTAINER=app
-      - APP_PORT=${PORT}
+      - APP_PORT=${PORT:-3000}
       - NGINX_PORT_1=80
       - NGINX_PORT_2=443
       - EMAIL=${EMAIL}
@@ -91,7 +124,6 @@ services:
       - pdfshare_data_nginx_logs:/var/log/nginx/
       - pdfshare_data_nginx_certs:/etc/nginx/certs
       - pdfshare_data_letsencrypt_www:/tmp/letsencrypt/www
-      - pdfshare_data_nginx_www:/home/web/www
       - pdfshare_data_nginx_cache:/var/cache/nginx
     logging:
       driver: 'json-file'
@@ -135,8 +167,6 @@ volumes:
   app_logs:
     driver: local
   pdfshare_data_db:
-    driver: local
-  pdfshare_data_nginx_www:
     driver: local
   pdfshare_data_nginx_logs:
     driver: local

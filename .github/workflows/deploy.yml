@@ -1,0 +1,33 @@
+name: Deploy Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy application
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Login to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Create .env from secret
+        run: |
+          printf '%s' "${{ secrets.APP_ENV_FILE }}" > .env
+          chmod 600 .env
+
+      - name: Build and deploy Docker Compose
+        run: |
+          echo "Stopping existing containers..."
+          docker-compose down -v --remove-orphans
+          echo "Building and starting containers..."
+          docker-compose up -d --build --force-recreate --remove-orphans

@@ -1,10 +1,11 @@
 import "dotenv/config";
 
-import type { Express } from "express";
+import type { Express, NextFunction, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import multer from 'multer';
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import { z } from "zod";
 import { db } from "./db";
 import { storage } from "./storage";
 import {
@@ -13,6 +14,9 @@ import {
 import { sendNotificationToSubscribers } from "./telegramBot";
 import { insertFolderSchema, File as FileObject } from "@shared/schema";
 import { verifyTelegramAuth } from "./telegramAuth";
+import { sendVerificationEmail, isMailConfigured } from "./mail";
+import { hashPassword, verifyPassword } from "./password";
+import { buildUniqueUsername } from "./usernames";
 
 declare module "express-session" {
   interface SessionData {
@@ -20,10 +24,41 @@ declare module "express-session" {
   }
 }
 
+const MAX_UPLOAD_SIZE_BYTES = 100 * 1024 * 1024;
+const MAX_UPLOAD_SIZE_LABEL = "100 МБ";
+
+const registerSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(3, "Username должен содержать минимум 3 символа")
+    .max(32, "Username должен содержать максимум 32 символа")
+    .regex(/^[A-Za-z0-9_.-]+$/, "Username может содержать только буквы, цифры, точки, дефисы и подчёркивания"),
+  email: z.string().trim().email("Введите корректный email"),
+  password: z
+    .string()
+    .min(8, "Пароль должен содержать минимум 8 символов")
+    .max(128, "Пароль слишком длинный"),
+  passwordConfirmation: z.string(),
+}).superRefine(({ password, passwordConfirmation }, ctx) => {
+  if (password !== passwordConfirmation) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["passwordConfirmation"],
+      message: "Пароли не совпадают",
+    });
+  }
+});
+
+const loginSchema = z.object({
+  username: z.string().trim().min(1, "Введите username"),
+  password: z.string().min(1, "Введите пароль"),
+});
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 512 * 1024 * 1024,
+    fileSize: MAX_UPLOAD_SIZE_BYTES,
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/pdf') {
@@ -34,6 +69,20 @@ const upload = multer({
   }
 });
 
+function uploadPdf(req: Request, res: Response, next: NextFunction) {
+  upload.single('file')(req, res, (error) => {
+    if (!error) {
+      return next();
+    }
+
+    if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({ error: `Размер файла не должен превышать ${MAX_UPLOAD_SIZE_LABEL}` });
+    }
+
+    return res.status(400).json({ error: error.message || "Не удалось загрузить файл" });
+  });
+}
+
 function isAuthenticated(req: any, res: any, next: any) {
   if (req.session.userId) {
     return next();
@@ -41,10 +90,32 @@ function isAuthenticated(req: any, res: any, next: any) {
   return res.status(401).json({ error: "Не авторизован" });
 }
 
+async function saveSession(req: Request): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    req.session.save((err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve();
+    });
+  });
+}
+
+async function authenticateUser(req: Request, userId: string): Promise<void> {
+  req.session.userId = userId;
+  await saveSession(req);
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   if (!process.env.SESSION_SECRET) {
     throw new Error("SESSION_SECRET environment variable is required");
   }
+
+  app.get("/api/health", (_req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
 
   const PgSession = connectPgSimple(session);
 
@@ -79,6 +150,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ user });
   });
 
+  app.post("/api/auth/register", async (req, res) => {
+    if (!isMailConfigured()) {
+      return res.status(500).json({ error: "Почтовый сервер не настроен" });
+    }
+
+    const validation = registerSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ error: validation.error.issues[0]?.message || "Некорректные данные" });
+    }
+
+    const username = validation.data.username.trim();
+    const email = validation.data.email.trim().toLowerCase();
+
+    const existingUserByUsername = await storage.getUserByUsername(username);
+    if (existingUserByUsername) {
+      return res.status(409).json({ error: "Пользователь с таким username уже существует" });
+    }
+
+    const existingUserByEmail = await storage.getUserByEmail(email);
+    if (existingUserByEmail) {
+      return res.status(409).json({ error: "Пользователь с таким email уже существует" });
+    }
+
+    let userIdToCleanup: string | null = null;
+
+    try {
+      const passwordHash = await hashPassword(validation.data.password);
+      const user = await storage.createUser({
+        telegramId: null,
+        username,
+        email,
+        firstName: null,
+        lastName: null,
+      });
+
+      userIdToCleanup = user.id;
+
+      await storage.createUserCredentials({
+        userId: user.id,
+        passwordHash,
+      });
+      await storage.ensureRecentFolder(user.id);
+
+      const verificationToken = await storage.createEmailVerificationToken(user.id, email, 24);
+      await sendVerificationEmail(email, verificationToken.token, username);
+
+      res.status(201).json({
+        success: true,
+        message: "Письмо с подтверждением отправлено на указанную почту",
+      });
+    } catch (error) {
+      if (userIdToCleanup) {
+        await storage.deleteUser(userIdToCleanup);
+      }
+
+      console.error("Ошибка регистрации по email:", error);
+      res.status(500).json({ error: "Не удалось завершить регистрацию" });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    const validation = loginSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ error: validation.error.issues[0]?.message || "Некорректные данные" });
+    }
+
+    const username = validation.data.username.trim();
+    const loginUser = await storage.getUserWithPasswordByUsername(username);
+
+    if (!loginUser) {
+      return res.status(401).json({ error: "Неверный username или пароль" });
+    }
+
+    const passwordMatches = await verifyPassword(validation.data.password, loginUser.passwordHash);
+    if (!passwordMatches) {
+      return res.status(401).json({ error: "Неверный username или пароль" });
+    }
+
+    if (!loginUser.user.isEmailVerified) {
+      return res.status(403).json({ error: "Подтвердите email перед входом" });
+    }
+
+    await authenticateUser(req, loginUser.user.id);
+    res.json({ user: loginUser.user });
+  });
+
+  app.get("/api/auth/verify-email/:token", async (req, res) => {
+    const { token } = req.params;
+
+    if (!token) {
+      return res.status(400).json({ error: "Токен подтверждения не предоставлен" });
+    }
+
+    try {
+      const user = await storage.validateEmailVerificationToken(token);
+
+      if (!user) {
+        return res.status(400).json({ error: "Ссылка подтверждения недействительна или истекла" });
+      }
+
+      await authenticateUser(req, user.id);
+      res.json({ success: true, user });
+    } catch (error) {
+      console.error("Ошибка подтверждения email:", error);
+      res.status(500).json({ error: "Не удалось подтвердить email" });
+    }
+  });
+
   app.post("/api/auth/telegram", async (req, res) => {
     try {
       const isValid = verifyTelegramAuth(req.body);
@@ -92,9 +271,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let user = await storage.getUserByTelegramId(telegramId);
 
       if (!user) {
+        const uniqueUsername = await buildUniqueUsername(username || `user_${telegramId}`, `user_${telegramId}`);
         user = await storage.createUser({
           telegramId,
-          username: username || `user_${telegramId}`,
+          username: uniqueUsername,
+          email: null,
           firstName,
           lastName,
         });
@@ -102,7 +283,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.ensureRecentFolder(user.id);
       }
 
-      req.session.userId = user.id;
+      await authenticateUser(req, user.id);
 
       res.json({ user });
     } catch (error) {
@@ -134,14 +315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Недействительный или истёкший токен" });
       }
 
-      req.session.userId = user.id;
-      
-      await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+      await authenticateUser(req, user.id);
 
       res.json({ user, success: true });
     } catch (error) {
@@ -161,9 +335,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let user = await storage.getUserByTelegramId(telegramId);
 
       if (!user) {
+        const uniqueUsername = await buildUniqueUsername(username || `id${telegramId}`, `id${telegramId}`);
         user = await storage.createUser({
           telegramId,
-          username: username || `id${telegramId}`,
+          username: uniqueUsername,
+          email: null,
           firstName: firstName || "Test",
           lastName: "User",
         });
@@ -171,13 +347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.ensureRecentFolder(user.id);
       }
 
-      req.session.userId = user.id;
-      await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+      await authenticateUser(req, user.id);
 
       res.json({ user, sessionId: req.sessionID });
     });
@@ -298,7 +468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ exists });
   });
 
-  app.post("/api/folders/:folderId/files", isAuthenticated, upload.single('file'), async (req, res) => {
+  app.post("/api/folders/:folderId/files", isAuthenticated, uploadPdf, async (req, res) => {
     const { folderId } = req.params;
     const { name } = req.body;
 
