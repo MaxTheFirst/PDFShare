@@ -22,6 +22,7 @@ services:
       APP_BASE_URL: ${APP_BASE_URL:-}
       MAIL_HOST: ${MAIL_HOST:-}
       MAIL_PORT: ${MAIL_PORT:-465}
+      MAIL_FAMILY: ${MAIL_FAMILY:-4}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_SECURE: ${MAIL_SECURE:-true}
@@ -37,6 +38,12 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin123
       ENABLE_TEST_LOGIN: "false"
+      HTTP_PROXY: http://host.docker.internal:2080
+      HTTPS_PROXY: http://host.docker.internal:2080
+      NO_PROXY: localhost,127.0.0.1,pdfshare-db,postgres,minio,nginx,app
+      http_proxy: http://host.docker.internal:2080
+      https_proxy: http://host.docker.internal:2080
+      no_proxy: localhost,127.0.0.1,pdfshare-db,postgres,minio,nginx,app
     volumes:
       - app_logs:/app/logs
     healthcheck:

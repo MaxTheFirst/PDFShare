@@ -28,6 +28,6 @@ jobs:
       - name: Build and deploy Docker Compose
         run: |
           echo "Stopping existing containers..."
-          docker-compose down -v --remove-orphans
+          docker-compose down --remove-orphans
           echo "Building and starting containers..."
           docker-compose up -d --build --force-recreate --remove-orphans
