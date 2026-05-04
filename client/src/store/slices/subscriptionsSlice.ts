@@ -28,7 +28,8 @@ export const fetchSubscriptions = createAsyncThunk(
 export const subscribe = createAsyncThunk(
   'subscriptions/subscribe',
   async (data: { folderId?: string; fileId?: string }) => {
-    return await apiRequest('POST', '/api/subscriptions', data);
+    const response = await apiRequest('POST', '/api/subscriptions', data);
+    return response.json();
   }
 );
 
