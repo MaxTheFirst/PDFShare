@@ -30,11 +30,20 @@ interface FileUploaderProps {
   onUploadComplete?: () => void;
 }
 
+interface SelectedFile {
+  file: File;
+  name: string;
+}
+
+function createRandomPdfName() {
+  return `pdf-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}.pdf`;
+}
+
 export function FileUploader({ folderId, onUploadComplete }: FileUploaderProps) {
   const [showDialog, setShowDialog] = useState(false);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [conflictFile, setConflictFile] = useState<{ file: File; existingName: string } | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
+  const [conflictFile, setConflictFile] = useState<{ file: SelectedFile; existingName: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
@@ -45,7 +54,10 @@ export function FileUploader({ folderId, onUploadComplete }: FileUploaderProps) 
     },
     maxSize: MAX_UPLOAD_SIZE_BYTES,
     onDrop: (acceptedFiles) => {
-      setSelectedFiles(acceptedFiles);
+      setSelectedFiles(acceptedFiles.map(file => ({
+        file,
+        name: createRandomPdfName(),
+      })));
       setShowDialog(true);
     },
     onDropRejected: (fileRejections) => {
@@ -71,9 +83,10 @@ export function FileUploader({ folderId, onUploadComplete }: FileUploaderProps) 
 
     try {
       for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
+        const selectedFile = selectedFiles[i];
+        const { file, name } = selectedFile;
         
-        const checkResponse = await fetch(`/api/folders/${folderId}/files/check?name=${encodeURIComponent(file.name)}`);
+        const checkResponse = await fetch(`/api/folders/${folderId}/files/check?name=${encodeURIComponent(name)}`);
         
         if (!checkResponse.ok) {
           const errorData = await checkResponse.json().catch(() => ({}));
@@ -83,7 +96,7 @@ export function FileUploader({ folderId, onUploadComplete }: FileUploaderProps) 
         const { exists } = await checkResponse.json();
 
         if (exists && !replaceExisting) {
-          setConflictFile({ file, existingName: file.name });
+          setConflictFile({ file: selectedFile, existingName: name });
           setShowConflictDialog(true);
           setUploading(false);
           return;
@@ -91,7 +104,7 @@ export function FileUploader({ folderId, onUploadComplete }: FileUploaderProps) 
 
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('name', file.name);
+        formData.append('name', name);
 
         const storageResponse = await fetch(`/api/folders/${folderId}/files`, {
           method: 'POST',
@@ -160,13 +173,13 @@ export function FileUploader({ folderId, onUploadComplete }: FileUploaderProps) 
               <Progress value={progress} />
             )}
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {selectedFiles.map((file, index) => (
+              {selectedFiles.map((selectedFile, index) => (
                 <div key={index} className="flex items-center gap-3 p-2 border rounded-md">
                   <FileText className="w-5 h-5 text-primary flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{file.name}</p>
+                    <p className="text-sm font-medium truncate">{selectedFile.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {(file.size / 1024).toFixed(1)} KB
+                      {(selectedFile.file.size / 1024).toFixed(1)} KB
                     </p>
                   </div>
                   {!uploading && (

@@ -4,6 +4,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import { Button } from "@/components/ui/button";
 import { X, Download, Share2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { ShareDialog } from "@/components/share-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -20,6 +21,7 @@ export default function PDFViewer() {
   const [scale, setScale] = useState<number>(1.0);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const { toast } = useToast();
+  usePageTitle(file?.name ?? "Загрузка файла");
 
   useEffect(() => {
     if (fileId) {
