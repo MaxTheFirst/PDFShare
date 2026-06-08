@@ -17,6 +17,8 @@ import PublicFile from "@/pages/public-file";
 import TelegramLogin from "@/pages/telegram-login";
 import AuthPage from "@/pages/auth";
 import VerifyEmailPage from "@/pages/verify-email";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import ResetPasswordPage from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
 
 const routeTitles: Array<[RegExp, string]> = [
@@ -27,6 +29,8 @@ const routeTitles: Array<[RegExp, string]> = [
   [/^\/docs$/, "Документация"],
   [/^\/auth$/, "Вход"],
   [/^\/auth\/verify-email$/, "Подтверждение email"],
+  [/^\/auth\/forgot-password$/, "Восстановление пароля"],
+  [/^\/auth\/reset-password$/, "Новый пароль"],
   [/^\/auth\/telegram-login$/, "Вход через Telegram"],
   [/^\/shared\/folder\/[^/]+$/, "Загрузка папки"],
   [/^\/shared\/file\/[^/]+$/, "Загрузка файла"],
@@ -54,6 +58,8 @@ function Router() {
       <Route path="/docs" component={Docs} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/auth/verify-email" component={VerifyEmailPage} />
+      <Route path="/auth/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/auth/reset-password" component={ResetPasswordPage} />
       <Route path="/auth/telegram-login" component={TelegramLogin} />
       <Route path="/shared/folder/:shareToken" component={PublicFolder} />
       <Route path="/shared/file/:shareToken" component={PublicFile} />
