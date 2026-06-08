@@ -225,6 +225,16 @@ export default function AuthPage() {
                     >
                       {loginSubmitting ? "Входим..." : "Войти"}
                     </Button>
+
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="h-auto w-full p-0"
+                      onClick={() => setLocation("/auth/forgot-password")}
+                      data-testid="button-forgot-password"
+                    >
+                      Забыли пароль?
+                    </Button>
                   </form>
                 </TabsContent>
 

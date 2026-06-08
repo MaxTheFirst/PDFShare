@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, Upload, Trash2, Share2, MoreVertical } from "lucide-react";
+import { FileText, Upload, Trash2, Share2, MoreVertical, RefreshCw } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +29,49 @@ export function FileExplorer({ folderId, folder, loading }: FileExplorerProps) {
   const dispatch = useAppDispatch();
   const [shareItem, setShareItem] = useState<{ url: string; title: string; type: string } | null>(null);
   const { toast } = useToast();
+
+  const handleUpdateFile = async (currentFile: File, selectedFile?: globalThis.File) => {
+    if (!selectedFile || !folderId) return;
+
+    if (selectedFile.type !== 'application/pdf') {
+      toast({
+        title: "Ошибка",
+        description: "Можно загружать только PDF файлы",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('name', currentFile.name);
+
+      const response = await fetch(`/api/folders/${folderId}/files`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Не удалось обновить файл');
+      }
+
+      await dispatch(fetchFolderById(folderId));
+      toast({
+        title: "Успех",
+        description: "Файл обновлён",
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Не удалось обновить файл";
+      toast({
+        title: "Ошибка",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleDeleteFile = async (fileId: string) => {
     if (confirm('Вы уверены, что хотите удалить этот файл?')) {
@@ -176,6 +219,16 @@ export function FileExplorer({ folderId, folder, loading }: FileExplorerProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          document.getElementById(`input-update-file-${file.id}`)?.click();
+                        }}
+                        data-testid={`menu-update-file-${file.id}`}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Обновить
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={(e) => {
                         e.stopPropagation();
                         handleShareFile(file);
@@ -196,6 +249,19 @@ export function FileExplorer({ folderId, folder, loading }: FileExplorerProps) {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  <input
+                    id={`input-update-file-${file.id}`}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="hidden"
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleUpdateFile(file, e.target.files?.[0]);
+                      e.currentTarget.value = '';
+                    }}
+                    data-testid={`input-update-file-${file.id}`}
+                  />
                 </div>
               </Card>
             ))}

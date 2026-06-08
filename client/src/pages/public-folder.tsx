@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileText, Download, Home, Bell, BellOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { FolderWithFiles, User, Subscription } from "@shared/schema";
 
@@ -15,6 +16,7 @@ export default function PublicFolder() {
   const [folder, setFolder] = useState<FolderWithFiles | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  usePageTitle(folder?.name ?? (loading ? "Загрузка папки" : "Папка не найдена"));
 
   const { data: currentUser } = useQuery<{ user: User | null }>({
     queryKey: ['/api/auth/me'],

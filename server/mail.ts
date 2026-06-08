@@ -439,3 +439,32 @@ export async function sendVerificationEmail(email: string, token: string, userna
     html,
   });
 }
+
+export async function sendPasswordResetEmail(email: string, token: string, username: string): Promise<void> {
+  const resetUrl = `${getAppBaseUrl()}/auth/reset-password?token=${encodeURIComponent(token)}`;
+
+  const subject = "Сброс пароля в PDFShare";
+  const text = [
+    `Здравствуйте, ${username}!`,
+    "",
+    "Мы получили запрос на сброс пароля в PDFShare.",
+    "Чтобы задать новый пароль, перейдите по ссылке:",
+    resetUrl,
+    "",
+    "Ссылка действует 1 час. Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо.",
+  ].join("\n");
+
+  const html = [
+    `<p>Здравствуйте, <strong>${username}</strong>!</p>`,
+    "<p>Мы получили запрос на сброс пароля в PDFShare.</p>",
+    `<p><a href="${resetUrl}">Задать новый пароль</a></p>`,
+    "<p>Ссылка действует 1 час. Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо.</p>",
+  ].join("");
+
+  await sendMail({
+    to: email,
+    subject,
+    text,
+    html,
+  });
+}

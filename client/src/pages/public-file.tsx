@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { X, Download, Home, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Bell, BellOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { File, User, Subscription } from "@shared/schema";
@@ -22,6 +23,7 @@ export default function PublicFile() {
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const { toast } = useToast();
+  usePageTitle(file?.name ?? "Загрузка файла");
 
   const { data: currentUser } = useQuery<{ user: User | null }>({
     queryKey: ['/api/auth/me'],

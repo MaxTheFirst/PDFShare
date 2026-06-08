@@ -6,6 +6,7 @@ import {
   subscriptions,
   loginTokens,
   emailVerificationTokens,
+  passwordResetTokens,
   type User,
   type InsertUser,
   type InsertUserCredential,
@@ -17,6 +18,7 @@ import {
   type InsertSubscription,
   type LoginToken,
   type EmailVerificationToken,
+  type PasswordResetToken,
   type FolderWithFiles,
 } from "@shared/schema";
 import { db } from "./db";
@@ -31,6 +33,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserWithPasswordByUsername(username: string): Promise<{ user: User; passwordHash: string } | undefined>;
+  getUserWithPasswordByEmail(email: string): Promise<{ user: User; passwordHash: string } | undefined>;
   createUser(user: InsertUser): Promise<User>;
   createUserCredentials(credentials: InsertUserCredential): Promise<void>;
   deleteUser(id: string): Promise<void>;
@@ -74,6 +77,11 @@ export interface IStorage {
   createEmailVerificationToken(userId: string, email: string, expiresInHours?: number): Promise<EmailVerificationToken>;
   validateEmailVerificationToken(token: string): Promise<User | null>;
   cleanupExpiredEmailVerificationTokens(): Promise<void>;
+
+  // Password Reset Tokens
+  createPasswordResetToken(userId: string, expiresInHours?: number): Promise<PasswordResetToken>;
+  resetPasswordWithToken(token: string, passwordHash: string): Promise<User | null>;
+  cleanupExpiredPasswordResetTokens(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -118,6 +126,28 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .innerJoin(userCredentials, eq(userCredentials.userId, users.id))
       .where(eq(users.username, username));
+
+    if (!result) {
+      return undefined;
+    }
+
+    return {
+      user: result.user,
+      passwordHash: result.passwordHash,
+    };
+  }
+
+  async getUserWithPasswordByEmail(
+    email: string
+  ): Promise<{ user: User; passwordHash: string } | undefined> {
+    const [result] = await db
+      .select({
+        user: users,
+        passwordHash: userCredentials.passwordHash,
+      })
+      .from(users)
+      .innerJoin(userCredentials, eq(userCredentials.userId, users.id))
+      .where(eq(users.email, email));
 
     if (!result) {
       return undefined;
@@ -488,6 +518,67 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(emailVerificationTokens)
       .where(lt(emailVerificationTokens.expiresAt, new Date()));
+  }
+
+  async createPasswordResetToken(
+    userId: string,
+    expiresInHours: number = 1
+  ): Promise<PasswordResetToken> {
+    const token = nanoid(48);
+    const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
+
+    const [passwordResetToken] = await db
+      .insert(passwordResetTokens)
+      .values({
+        token,
+        userId,
+        expiresAt,
+      })
+      .returning();
+
+    return passwordResetToken;
+  }
+
+  async resetPasswordWithToken(token: string, passwordHash: string): Promise<User | null> {
+    return db.transaction(async (tx: any) => {
+      const updatedTokens = await tx
+        .update(passwordResetTokens)
+        .set({ used: true })
+        .where(
+          and(
+            eq(passwordResetTokens.token, token),
+            eq(passwordResetTokens.used, false),
+            gt(passwordResetTokens.expiresAt, new Date())
+          )
+        )
+        .returning();
+
+      if (updatedTokens.length === 0) {
+        return null;
+      }
+
+      const [resetToken] = updatedTokens;
+      await tx
+        .insert(userCredentials)
+        .values({ userId: resetToken.userId, passwordHash })
+        .onConflictDoUpdate({
+          target: userCredentials.userId,
+          set: { passwordHash },
+        });
+
+      const [user] = await tx
+        .select()
+        .from(users)
+        .where(eq(users.id, resetToken.userId));
+
+      return user || null;
+    });
+  }
+
+  async cleanupExpiredPasswordResetTokens(): Promise<void> {
+    await db
+      .delete(passwordResetTokens)
+      .where(lt(passwordResetTokens.expiresAt, new Date()));
   }
 }
 

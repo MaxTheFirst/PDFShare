@@ -72,6 +72,15 @@ export const emailVerificationTokens = pgTable("email_verification_tokens", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: varchar("token").notNull().unique(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   folders: many(folders),
@@ -79,6 +88,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   subscriptions: many(subscriptions),
   loginTokens: many(loginTokens),
   emailVerificationTokens: many(emailVerificationTokens),
+  passwordResetTokens: many(passwordResetTokens),
   credentials: one(userCredentials, {
     fields: [users.id],
     references: [userCredentials.userId],
@@ -143,6 +153,13 @@ export const emailVerificationTokensRelations = relations(emailVerificationToken
   }),
 }));
 
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResetTokens.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -186,6 +203,12 @@ export const insertEmailVerificationTokenSchema = createInsertSchema(emailVerifi
   used: true,
 });
 
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({
+  id: true,
+  createdAt: true,
+  used: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -207,6 +230,9 @@ export type InsertLoginToken = z.infer<typeof insertLoginTokenSchema>;
 
 export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
 export type InsertEmailVerificationToken = z.infer<typeof insertEmailVerificationTokenSchema>;
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
 
 // Extended types with relations
 export type FolderWithFiles = Folder & {

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { logout } from "@/store/slices/authSlice";
 import { verifyAuth } from "@/store/slices/authSlice";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export default function Explorer() {
   const { folderId } = useParams<{ folderId?: string }>();
@@ -16,6 +17,7 @@ export default function Explorer() {
   const dispatch = useAppDispatch();
   const { user, loading: authLoading } = useAppSelector(state => state.auth);
   const { folders, currentFolder, loading } = useAppSelector(state => state.folders);
+  usePageTitle(currentFolder?.name ?? "Проводник");
 
   useEffect(() => {
       dispatch(verifyAuth());

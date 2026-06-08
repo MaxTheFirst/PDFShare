@@ -14,7 +14,7 @@ import {
 import { sendNotificationToSubscribers } from "./telegramBot";
 import { insertFolderSchema, File as FileObject } from "@shared/schema";
 import { verifyTelegramAuth } from "./telegramAuth";
-import { sendVerificationEmail, isMailConfigured } from "./mail";
+import { sendVerificationEmail, sendPasswordResetEmail, isMailConfigured } from "./mail";
 import { hashPassword, verifyPassword } from "./password";
 import { buildUniqueUsername } from "./usernames";
 
@@ -53,6 +53,27 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   username: z.string().trim().min(1, "Введите username"),
   password: z.string().min(1, "Введите пароль"),
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().trim().email("Введите корректный email"),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().trim().min(1, "Токен сброса пароля не предоставлен"),
+  password: z
+    .string()
+    .min(8, "Пароль должен содержать минимум 8 символов")
+    .max(128, "Пароль слишком длинный"),
+  passwordConfirmation: z.string(),
+}).superRefine(({ password, passwordConfirmation }, ctx) => {
+  if (password !== passwordConfirmation) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["passwordConfirmation"],
+      message: "Пароли не совпадают",
+    });
+  }
 });
 
 const upload = multer({
@@ -234,6 +255,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     await authenticateUser(req, loginUser.user.id);
     res.json({ user: loginUser.user });
+  });
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    if (!isMailConfigured()) {
+      return res.status(500).json({ error: "Почтовый сервер не настроен" });
+    }
+
+    const validation = forgotPasswordSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ error: validation.error.issues[0]?.message || "Некорректные данные" });
+    }
+
+    const email = validation.data.email.trim().toLowerCase();
+    const successMessage = "Если такой email зарегистрирован, мы отправили ссылку для сброса пароля";
+
+    try {
+      const loginUser = await storage.getUserWithPasswordByEmail(email);
+
+      if (loginUser?.user.isEmailVerified && loginUser.user.email) {
+        const resetToken = await storage.createPasswordResetToken(loginUser.user.id, 1);
+        await sendPasswordResetEmail(loginUser.user.email, resetToken.token, loginUser.user.username);
+      }
+
+      res.json({ success: true, message: successMessage });
+    } catch (error) {
+      console.error("Ошибка отправки письма для сброса пароля:", error);
+      res.status(500).json({ error: "Не удалось отправить письмо для сброса пароля" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    const validation = resetPasswordSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ error: validation.error.issues[0]?.message || "Некорректные данные" });
+    }
+
+    try {
+      const passwordHash = await hashPassword(validation.data.password);
+      const user = await storage.resetPasswordWithToken(validation.data.token, passwordHash);
+
+      if (!user) {
+        return res.status(400).json({ error: "Ссылка для сброса пароля недействительна или истекла" });
+      }
+
+      await authenticateUser(req, user.id);
+      res.json({ success: true, user });
+    } catch (error) {
+      console.error("Ошибка сброса пароля:", error);
+      res.status(500).json({ error: "Не удалось сбросить пароль" });
+    }
   });
 
   app.get("/api/auth/verify-email/:token", async (req, res) => {
