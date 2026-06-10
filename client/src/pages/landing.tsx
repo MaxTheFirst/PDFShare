@@ -133,6 +133,12 @@ export default function Landing() {
               </p>
             </Card>
           </div>
+          <h2 className="text-2xl md:text-3xl font-semibold text-center mb-12">
+            Автор
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            Вершинин Максим. Telegram: <a href="https://t.me/maxproger">@maxproger</a>
+          </p>
         </div>
       </section>
 
