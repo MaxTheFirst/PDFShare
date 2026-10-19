@@ -132,14 +132,15 @@ services:
       - pdfshare-net
 
   migrate:
-    image: postgres:14-alpine
+    # The CI runner uses the host Docker socket, so migration SQL must be in the image.
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       PGPASSWORD: pdfshare_password
-    volumes:
-      - ./migrations/0002_user_consents.sql:/migrations/0002_user_consents.sql:ro
     command: ["psql", "-v", "ON_ERROR_STOP=1", "-h", "postgres", "-U", "pdfshare", "-d", "pdfshare", "-f", "/migrations/0002_user_consents.sql"]
     networks:
       - pdfshare-net
