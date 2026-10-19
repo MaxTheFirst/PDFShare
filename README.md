@@ -46,7 +46,7 @@ npm install
 ```
 
 ### 4. Docker и Traefik
-На сервере должен работать Traefik с Docker provider, точкой входа `websecure`, resolver сертификатов `le` и внешней Docker-сетью `traefik`. При другом имени сети задайте `TRAEFIK_NETWORK`. Traefik принимает HTTPS и направляет трафик на Nginx по HTTP (порт 80 внутри сети). Nginx не хранит сертификаты и не публикует порты хоста.
+На сервере должен работать Traefik с Docker provider, точкой входа `websecure`, resolver сертификатов `le` и внешней Docker-сетью `traefik-public`. При другом имени сети задайте `TRAEFIK_NETWORK` в `.env`. Traefik принимает HTTPS и направляет трафик на Nginx по HTTP (порт 80 внутри сети). Nginx не хранит сертификаты и не публикует порты хоста.
 
 Задайте `DOMAIN`, `SESSION_SECRET` и почтовые переменные в `.env`, затем выполните `docker compose up --build -d`. Сервис `migrate` автоматически создаёт таблицу согласий в существующей базе; для новой базы таблица включена в `init-db.sql`.
 
