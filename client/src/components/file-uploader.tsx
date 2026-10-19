@@ -21,9 +21,7 @@ import {
 import { Upload, FileText, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
-
-const MAX_UPLOAD_SIZE_BYTES = 100 * 1024 * 1024;
-const MAX_UPLOAD_SIZE_LABEL = "100 МБ";
+import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL } from "@shared/uploadLimits";
 
 interface FileUploaderProps {
   folderId: string;

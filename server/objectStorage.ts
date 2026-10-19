@@ -1,8 +1,25 @@
 import "dotenv/config";
 import { Client as MinioClient } from "minio";
 import { Response } from "express";
+import { pool } from "./db";
+import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL } from "@shared/uploadLimits";
 
 const BUCKET_NAME: string = process.env.MINIO_BUCKET || "uploads";
+const STORAGE_LIMIT_BYTES = 10_000_000_000;
+
+export class StorageQuotaExceededError extends Error {
+  constructor() {
+    super("Хранилище заполнено: лимит 10 ГБ");
+    this.name = "StorageQuotaExceededError";
+  }
+}
+
+export class FileTooLargeError extends Error {
+  constructor() {
+    super(`Размер файла не должен превышать ${MAX_UPLOAD_SIZE_LABEL}`);
+    this.name = "FileTooLargeError";
+  }
+}
 
 export const minio = new MinioClient({
   endPoint: process.env.MINIO_ENDPOINT || "minio",
@@ -23,6 +40,22 @@ export async function createMinioBucket() {
     console.error("Error ensuring bucket exists:", err);
     throw err;
   }
+}
+
+async function getBucketUsage(replacedObjectName: string): Promise<{ totalBytes: number; replacedBytes: number }> {
+  return new Promise((resolve, reject) => {
+    let totalBytes = 0;
+    let replacedBytes = 0;
+    const stream = minio.listObjectsV2(BUCKET_NAME, "", true);
+
+    stream.on("data", (object) => {
+      const size = object.size ?? 0;
+      totalBytes += size;
+      if (object.name === replacedObjectName) replacedBytes = size;
+    });
+    stream.on("error", reject);
+    stream.on("end", () => resolve({ totalBytes, replacedBytes }));
+  });
 }
 
 export class ObjectNotFoundError extends Error {
@@ -93,18 +126,50 @@ export class ObjectStorageService {
   }
 
   async uploadPdfFile(fileBuffer: Buffer, fileId: string) {
-    const fileName = `${fileId}.pdf`
-    await minio.putObject(
-      BUCKET_NAME,
-      fileName,
-      fileBuffer,
-      fileBuffer.length,
-      {
-        'Content-Type': 'application/pdf',
-        'original-filename': fileName,
-        'uploaded-at': new Date().toISOString(),
+    if (fileBuffer.length > MAX_UPLOAD_SIZE_BYTES) {
+      throw new FileTooLargeError();
+    }
+    const fileName = `${fileId}.pdf`;
+    const connection = await pool.connect();
+    let locked = false;
+
+    try {
+      // Serialize uploads across app instances so concurrent requests cannot pass the limit together.
+      await connection.query("SELECT pg_advisory_lock(50186, 10)");
+      locked = true;
+
+      const { totalBytes, replacedBytes } = await getBucketUsage(fileName);
+      if (totalBytes - replacedBytes + fileBuffer.length > STORAGE_LIMIT_BYTES) {
+        throw new StorageQuotaExceededError();
       }
-    );
+
+      try {
+        await minio.putObject(
+          BUCKET_NAME,
+          fileName,
+          fileBuffer,
+          fileBuffer.length,
+          {
+            'Content-Type': 'application/pdf',
+            'original-filename': fileName,
+            'uploaded-at': new Date().toISOString(),
+          }
+        );
+      } catch (error) {
+        if (error instanceof Error && "code" in error && error.code === "XMinioAdminBucketQuotaExceeded") {
+          throw new StorageQuotaExceededError();
+        }
+        throw error;
+      }
+    } finally {
+      try {
+        if (locked) await connection.query("SELECT pg_advisory_unlock(50186, 10)");
+      } catch (error) {
+        connection.release(error as Error);
+        throw error;
+      }
+      connection.release();
+    }
   }
 
   async getObjectEntityFile(objectName: string): Promise<MinioFile> {
@@ -115,13 +180,8 @@ export class ObjectStorageService {
     return file;
   }
 
-  async deletFile(objectName: string) {
-    try {
-      await minio.removeObject(BUCKET_NAME, objectName);
-      console.log(`Deleted object: ${objectName}`);
-    } catch (err) {
-      console.error("Error deleting object:", err);
-    }
+  async deleteFile(fileId: string) {
+    await minio.removeObject(BUCKET_NAME, `${fileId}.pdf`);
   }
 }
 

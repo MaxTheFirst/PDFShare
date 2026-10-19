@@ -61,7 +61,7 @@ export default function Landing() {
           </div>
 
           <p className="text-sm text-muted-foreground">
-            На странице входа доступны авторизация по почте и через Telegram
+            Регистрация по email; вход через Telegram доступен существующим аккаунтам
           </p>
         </div>
       </section>
@@ -145,6 +145,10 @@ export default function Landing() {
       <footer className="border-t py-8 px-4">
         <div className="max-w-6xl mx-auto text-center text-sm text-muted-foreground">
           <p>© 2025 PDFShare. Все права защищены.</p>
+          <div className="mt-2 flex justify-center gap-4">
+            <a href="/agreement" className="underline">Пользовательское соглашение</a>
+            <a href="/personal-data-consent" className="underline">Обработка персональных данных</a>
+          </div>
         </div>
       </footer>
     </div>

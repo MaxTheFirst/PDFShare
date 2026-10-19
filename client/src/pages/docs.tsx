@@ -10,6 +10,7 @@ import {
   FileText,
   Folder,
   Home,
+  Mail,
   Server,
   Share2,
 } from "lucide-react";
@@ -17,9 +18,9 @@ import { useLocation } from "wouter";
 
 const usageScenario = [
   {
-    icon: Bot,
-    title: "Пользователь заходит через Telegram Bot",
-    text: "Авторизация проходит через Telegram: бот выдаёт одноразовую ссылку для входа в приложение.",
+    icon: Mail,
+    title: "Пользователь регистрируется по email",
+    text: "При регистрации пользователь принимает соглашение, подтверждает согласие на обработку данных и подтверждает email. Для старых аккаунтов остаётся вход через Telegram.",
   },
   {
     icon: Folder,
@@ -62,7 +63,7 @@ const technologies = [
   {
     icon: Bot,
     title: "Авторизация",
-    items: ["Telegram Bot OAuth"],
+    items: ["Email и пароль", "Telegram для существующих аккаунтов"],
   },
 ];
 
@@ -101,8 +102,8 @@ export default function Docs() {
               PDF-документов.
             </p>
             <p className="max-w-3xl text-lg text-muted-foreground">
-              Интеграция с Telegram используется для входа в приложение и уведомлений: пользователь
-              может подписаться на файл или папку и получать сообщения, когда появляются обновления.
+              Регистрация проходит по email. Telegram используется для входа в ранее созданные через
+              бота аккаунты и для уведомлений об обновлениях подписок.
             </p>
           </div>
         </section>

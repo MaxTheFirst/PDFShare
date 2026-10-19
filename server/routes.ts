@@ -10,6 +10,8 @@ import { db } from "./db";
 import { storage } from "./storage";
 import {
   objectStorageService,
+  StorageQuotaExceededError,
+  FileTooLargeError,
 } from "./objectStorage";
 import { sendNotificationToSubscribers } from "./telegramBot";
 import { insertFolderSchema, File as FileObject } from "@shared/schema";
@@ -17,15 +19,14 @@ import { verifyTelegramAuth } from "./telegramAuth";
 import { sendVerificationEmail, sendPasswordResetEmail, isMailConfigured } from "./mail";
 import { hashPassword, verifyPassword } from "./password";
 import { buildUniqueUsername } from "./usernames";
+import { USER_AGREEMENT_VERSION, PERSONAL_DATA_CONSENT_VERSION } from "@shared/legal";
+import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL } from "@shared/uploadLimits";
 
 declare module "express-session" {
   interface SessionData {
     userId?: string;
   }
 }
-
-const MAX_UPLOAD_SIZE_BYTES = 100 * 1024 * 1024;
-const MAX_UPLOAD_SIZE_LABEL = "100 МБ";
 
 const registerSchema = z.object({
   username: z
@@ -40,6 +41,8 @@ const registerSchema = z.object({
     .min(8, "Пароль должен содержать минимум 8 символов")
     .max(128, "Пароль слишком длинный"),
   passwordConfirmation: z.string(),
+  acceptAgreement: z.literal(true, { errorMap: () => ({ message: "Примите пользовательское соглашение" }) }),
+  acceptPersonalData: z.literal(true, { errorMap: () => ({ message: "Дайте согласие на обработку персональных данных" }) }),
 }).superRefine(({ password, passwordConfirmation }, ctx) => {
   if (password !== passwordConfirmation) {
     ctx.addIssue({
@@ -212,6 +215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: user.id,
         passwordHash,
       });
+      await storage.recordUserConsents(user.id, USER_AGREEMENT_VERSION, PERSONAL_DATA_CONSENT_VERSION);
       await storage.ensureRecentFolder(user.id);
 
       const verificationToken = await storage.createEmailVerificationToken(user.id, email, 24);
@@ -337,21 +341,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Недействительные данные авторизации" });
       }
 
-      const { id: telegramId, username, first_name: firstName, last_name: lastName } = req.body;
+      const { id: telegramId } = req.body;
 
-      let user = await storage.getUserByTelegramId(telegramId);
-
+      const user = await storage.getUserByTelegramId(telegramId);
       if (!user) {
-        const uniqueUsername = await buildUniqueUsername(username || `user_${telegramId}`, `user_${telegramId}`);
-        user = await storage.createUser({
-          telegramId,
-          username: uniqueUsername,
-          email: null,
-          firstName,
-          lastName,
-        });
-
-        await storage.ensureRecentFolder(user.id);
+        return res.status(403).json({ error: "Регистрация через Telegram отключена. Зарегистрируйтесь по email." });
       }
 
       await authenticateUser(req, user.id);
@@ -488,8 +482,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ error: 'Нельзя удалить папку "Недавние"' });
     }
 
-    await storage.deleteFolder(req.params.id);
-    res.json({ success: true });
+    try {
+      const folderFiles = await storage.getFilesByFolderId(req.params.id);
+      for (const file of folderFiles) {
+        await objectStorageService.deleteFile(file.id);
+      }
+      await storage.deleteFolder(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Ошибка удаления папки:", error);
+      res.status(500).json({ error: "Не удалось удалить папку" });
+    }
   });
 
   app.post("/api/folders/:id/share", isAuthenticated, async (req, res) => {
@@ -560,6 +563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingFile = await storage.getFileByName(folderId, name);
       let fileObject: FileObject;
       if (existingFile) {
+        await objectStorageService.uploadPdfFile(file.buffer, existingFile.id);
         fileObject = await storage.updateFile(existingFile.id, {
           version: existingFile.version + 1,
           size: file.size,
@@ -571,9 +575,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ownerId: req.session.userId!,
           size: file.size
         });
+        try {
+          await objectStorageService.uploadPdfFile(file.buffer, fileObject.id);
+        } catch (error) {
+          await storage.deleteFile(fileObject.id);
+          throw error;
+        }
       }
-
-      await objectStorageService.uploadPdfFile(file.buffer, fileObject.id);
 
       if (existingFile) {
         sendNotificationToSubscribers(
@@ -591,6 +599,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(file);
     } catch (error) {
       console.error("Ошибка создания файла:", error);
+      if (error instanceof FileTooLargeError) {
+        return res.status(413).json({ error: error.message });
+      }
+      if (error instanceof StorageQuotaExceededError) {
+        return res.status(507).json({ error: error.message });
+      }
       res.status(500).json({ error: "Ошибка создания файла" });
     }
   });
@@ -627,9 +641,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(403).json({ error: "Доступ запрещён" });
     }
 
-    await objectStorageService.deletFile(file.id)
-    await storage.deleteFile(req.params.id);
-    res.json({ success: true });
+    try {
+      await objectStorageService.deleteFile(file.id);
+      await storage.deleteFile(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Ошибка удаления файла:", error);
+      res.status(500).json({ error: "Не удалось удалить файл" });
+    }
   });
 
   app.get("/api/subscriptions", isAuthenticated, async (req, res) => {

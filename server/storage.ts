@@ -1,6 +1,7 @@
 import {
   users,
   userCredentials,
+  userConsents,
   folders,
   files,
   subscriptions,
@@ -36,6 +37,7 @@ export interface IStorage {
   getUserWithPasswordByEmail(email: string): Promise<{ user: User; passwordHash: string } | undefined>;
   createUser(user: InsertUser): Promise<User>;
   createUserCredentials(credentials: InsertUserCredential): Promise<void>;
+  recordUserConsents(userId: string, agreementVersion: string, personalDataVersion: string): Promise<void>;
   deleteUser(id: string): Promise<void>;
   markUserEmailAsVerified(userId: string): Promise<User | undefined>;
 
@@ -166,6 +168,10 @@ export class DatabaseStorage implements IStorage {
 
   async createUserCredentials(credentials: InsertUserCredential): Promise<void> {
     await db.insert(userCredentials).values(credentials);
+  }
+
+  async recordUserConsents(userId: string, agreementVersion: string, personalDataVersion: string): Promise<void> {
+    await db.insert(userConsents).values({ userId, agreementVersion, personalDataVersion });
   }
 
   async deleteUser(id: string): Promise<void> {

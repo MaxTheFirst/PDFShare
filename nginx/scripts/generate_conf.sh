@@ -15,5 +15,5 @@ touch /var/log/nginx/access.log /var/log/nginx/error.log
 # Установка прав
 chmod 666 /var/log/nginx/access.log /var/log/nginx/error.log
 
-envsubst '${NGINX_PORT_1} ${NGINX_PORT_2} ${DOMAIN} ${APP_CONTAINER} ${APP_PORT}' \
+envsubst '${APP_CONTAINER} ${APP_PORT}' \
   < /etc/nginx/nginx.conf.template > /etc/nginx/conf.d/nginx.conf
