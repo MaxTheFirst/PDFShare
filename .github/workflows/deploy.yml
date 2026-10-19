@@ -29,4 +29,7 @@ jobs:
         run: |
           docker-compose config --quiet
           echo "Building and starting containers..."
-          docker-compose up -d --build --force-recreate --remove-orphans
+          if ! docker-compose up -d --build --force-recreate --remove-orphans; then
+            docker-compose logs --no-color --tail=100 migrate || true
+            exit 1
+          fi
