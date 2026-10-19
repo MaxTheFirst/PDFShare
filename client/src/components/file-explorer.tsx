@@ -17,6 +17,7 @@ import { deleteFile } from "@/store/slices/filesSlice";
 import { fetchFolderById } from "@/store/slices/foldersSlice";
 import { useToast } from "@/hooks/use-toast";
 import type { FolderWithFiles, File } from "@shared/schema";
+import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL } from "@shared/uploadLimits";
 
 interface FileExplorerProps {
   folderId?: string;
@@ -37,6 +38,15 @@ export function FileExplorer({ folderId, folder, loading }: FileExplorerProps) {
       toast({
         title: "Ошибка",
         description: "Можно загружать только PDF файлы",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedFile.size > MAX_UPLOAD_SIZE_BYTES) {
+      toast({
+        title: "Ошибка",
+        description: `Размер файла не должен превышать ${MAX_UPLOAD_SIZE_LABEL}`,
         variant: "destructive",
       });
       return;

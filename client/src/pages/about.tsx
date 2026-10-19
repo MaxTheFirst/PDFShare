@@ -40,10 +40,10 @@ export default function About() {
                 <span className="text-xl font-semibold text-primary">1</span>
               </div>
               <div className="space-y-2">
-                <h4 className="font-medium">Авторизация через Telegram</h4>
+                <h4 className="font-medium">Регистрация по email</h4>
                 <p className="text-sm text-muted-foreground">
-                  Нажмите кнопку "Войти через Telegram" на главной странице. Бот отправит вам 
-                  ссылку для входа в аккаунт. Перейдите по ссылке, чтобы начать работу.
+                  Создайте аккаунт на странице регистрации и подтвердите email. Если у вас уже есть
+                  аккаунт через Telegram, вход через бота остаётся доступен.
                 </p>
               </div>
             </div>

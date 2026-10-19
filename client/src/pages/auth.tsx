@@ -21,6 +21,8 @@ type RegisterFormState = {
   email: string;
   password: string;
   passwordConfirmation: string;
+  acceptAgreement: boolean;
+  acceptPersonalData: boolean;
 };
 
 const initialLoginForm: LoginFormState = {
@@ -33,6 +35,8 @@ const initialRegisterForm: RegisterFormState = {
   email: "",
   password: "",
   passwordConfirmation: "",
+  acceptAgreement: false,
+  acceptPersonalData: false,
 };
 
 export default function AuthPage() {
@@ -295,6 +299,35 @@ export default function AuthPage() {
                         }
                         data-testid="input-register-password-confirmation"
                       />
+                    </div>
+
+                    <div className="space-y-3 text-sm">
+                      <div className="flex items-start gap-3">
+                        <input
+                          id="accept-agreement"
+                          type="checkbox"
+                          className="mt-1 h-4 w-4"
+                          checked={registerForm.acceptAgreement}
+                          onChange={(event) => setRegisterForm((current) => ({ ...current, acceptAgreement: event.target.checked }))}
+                          required
+                        />
+                        <Label htmlFor="accept-agreement" className="leading-5">
+                          Я принимаю <a className="text-primary underline" href="/agreement" target="_blank" rel="noopener noreferrer">пользовательское соглашение</a>
+                        </Label>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <input
+                          id="accept-personal-data"
+                          type="checkbox"
+                          className="mt-1 h-4 w-4"
+                          checked={registerForm.acceptPersonalData}
+                          onChange={(event) => setRegisterForm((current) => ({ ...current, acceptPersonalData: event.target.checked }))}
+                          required
+                        />
+                        <Label htmlFor="accept-personal-data" className="leading-5">
+                          Я даю <a className="text-primary underline" href="/personal-data-consent" target="_blank" rel="noopener noreferrer">согласие на обработку персональных данных</a>
+                        </Label>
+                      </div>
                     </div>
 
                     <Button

@@ -23,6 +23,15 @@ export const userCredentials = pgTable("user_credentials", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const userConsents = pgTable("user_consents", {
+  userId: varchar("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  agreementVersion: text("agreement_version").notNull(),
+  personalDataVersion: text("personal_data_version").notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const folders = pgTable("folders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -92,6 +101,17 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   credentials: one(userCredentials, {
     fields: [users.id],
     references: [userCredentials.userId],
+  }),
+  consents: one(userConsents, {
+    fields: [users.id],
+    references: [userConsents.userId],
+  }),
+}));
+
+export const userConsentsRelations = relations(userConsents, ({ one }) => ({
+  user: one(users, {
+    fields: [userConsents.userId],
+    references: [users.id],
   }),
 }));
 

@@ -8,8 +8,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       minio:
         condition: service_healthy
+      minio-config:
+        condition: service_completed_successfully
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -37,13 +41,8 @@ services:
       MINIO_SSL: "false"
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin123
+      MINIO_BUCKET: ${MINIO_BUCKET:-uploads}
       ENABLE_TEST_LOGIN: "false"
-      HTTP_PROXY: http://host.docker.internal:2080
-      HTTPS_PROXY: http://host.docker.internal:2080
-      NO_PROXY: localhost,127.0.0.1,pdfshare-db,postgres,minio,nginx,app
-      http_proxy: http://host.docker.internal:2080
-      https_proxy: http://host.docker.internal:2080
-      no_proxy: localhost,127.0.0.1,pdfshare-db,postgres,minio,nginx,app
     volumes:
       - app_logs:/app/logs
     healthcheck:
@@ -110,6 +109,34 @@ services:
         max-size: '10m'
         max-file: '10'
 
+  minio-config:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_BUCKET: ${MINIO_BUCKET:-uploads}
+    volumes:
+      - ./docker/minio-config.sh:/scripts/minio-config.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/minio-config.sh"]
+    networks:
+      - pdfshare-net
+
+  migrate:
+    image: postgres:14-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: pdfshare_password
+    volumes:
+      - ./migrations/0002_user_consents.sql:/migrations/0002_user_consents.sql:ro
+    command: ["psql", "-v", "ON_ERROR_STOP=1", "-h", "postgres", "-U", "pdfshare", "-d", "pdfshare", "-f", "/migrations/0002_user_consents.sql"]
+    networks:
+      - pdfshare-net
+
   nginx:
     build: 
       context: .
@@ -118,19 +145,18 @@ services:
     depends_on:
       - app
     environment:
-      - DOMAIN=${DOMAIN}
       - APP_CONTAINER=app
       - APP_PORT=${PORT:-3000}
-      - NGINX_PORT_1=80
-      - NGINX_PORT_2=443
-      - EMAIL=${EMAIL}
-    ports:
-      - 80:80
-      - 443:443
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.project-a.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.project-a.entrypoints=websecure"
+      - "traefik.http.routers.project-a.tls.certresolver=le"
+      - "traefik.http.services.project-a.loadbalancer.server.port=80"
+      - "traefik.http.routers.project-a.service=project-a"
+      - "traefik.docker.network=${TRAEFIK_NETWORK:-traefik}"
     volumes:
       - pdfshare_data_nginx_logs:/var/log/nginx/
-      - pdfshare_data_nginx_certs:/etc/nginx/certs
-      - pdfshare_data_letsencrypt_www:/tmp/letsencrypt/www
       - pdfshare_data_nginx_cache:/var/cache/nginx
     logging:
       driver: 'json-file'
@@ -140,35 +166,7 @@ services:
     restart: always
     networks:
       - pdfshare-net
-
-  letsencrypt:
-    image: gordonchan/auto-letsencrypt
-    container_name: letsencrypt
-    depends_on:
-      - nginx
-    volumes:
-      - pdfshare_data_letsencrypt_log:/var/log/letsencrypt
-      - /var/run/docker.sock:/var/run/docker.sock
-      - pdfshare_data_letsencrypt_etc:/etc/letsencrypt
-      - pdfshare_data_letsencrypt_lib:/var/lib/letsencrypt
-      - pdfshare_data_letsencrypt_www:/tmp/letsencrypt/www
-      - pdfshare_data_nginx_certs:/etc/nginx/certs
-    environment:
-      EMAIL: ${EMAIL}
-      SERVER_CONTAINER: nginx
-      WEBROOT_PATH: /tmp/letsencrypt/www
-      CERTS_PATH: /etc/nginx/certs
-      DOMAINS: ${DOMAIN}
-      CHECK_FREQ: 1
-      SERVER_CONTAINER_LABEL: proxy_nginx
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: '10m'
-        max-file: '10'
-    restart: unless-stopped
-    networks:
-      - pdfshare-net
+      - traefik
 
 volumes:
   app_logs:
@@ -177,17 +175,7 @@ volumes:
     driver: local
   pdfshare_data_nginx_logs:
     driver: local
-  pdfshare_data_nginx_certs:
-    driver: local
   pdfshare_data_nginx_cache:
-    driver: local
-  pdfshare_data_letsencrypt_www:
-    driver: local
-  pdfshare_data_letsencrypt_log:
-    driver: local
-  pdfshare_data_letsencrypt_etc:
-    driver: local
-  pdfshare_data_letsencrypt_lib:
     driver: local
   pdfshare_data_storage:
     driver: local
@@ -196,3 +184,6 @@ volumes:
 networks:
   pdfshare-net:
     driver: bridge
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}

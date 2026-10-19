@@ -1,6 +1,5 @@
 import TelegramBot from "node-telegram-bot-api";
 import { storage } from "./storage";
-import { buildUniqueUsername } from "./usernames";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -93,23 +92,11 @@ async function handleStart(msg: TelegramBot.Message) {
     return;
   }
 
-  let user = await storage.getUserByTelegramId(telegramId);
+  const user = await storage.getUserByTelegramId(telegramId);
   
   if (!user) {
-    const uniqueUsername = await buildUniqueUsername(
-      msg.from?.username || `user_${telegramId}`,
-      `user_${telegramId}`
-    );
-
-    user = await storage.createUser({
-      telegramId,
-      username: uniqueUsername,
-      email: null,
-      firstName: msg.from?.first_name,
-      lastName: msg.from?.last_name,
-    });
-    
-    await storage.ensureRecentFolder(user.id);
+    await bot.sendMessage(chatId, "Регистрация через Telegram отключена. Создайте аккаунт по email на сайте PDFShare.");
+    return;
   }
 
   const loginToken = await storage.createLoginToken(user.id, 5);
@@ -118,29 +105,7 @@ async function handleStart(msg: TelegramBot.Message) {
   const baseUrl = `https://${domain}`;
   const loginUrl = `${baseUrl}/auth/telegram-login?token=${loginToken.token}`;
 
-  if (!user.createdAt || Date.now() - new Date(user.createdAt).getTime() < 60000) {
-    await bot.sendMessage(
-      chatId,
-      `👋 Добро пожаловать в PDFShare!\n\n` +
-      `Вы успешно зарегистрированы.\n\n` +
-      `Теперь вы можете:\n` +
-      `📂 Загружать и организовывать PDF файлы\n` +
-      `🔗 Делиться файлами и папками по ссылкам\n` +
-      `🔔 Подписываться на обновления файлов\n\n` +
-      `Нажмите кнопку ниже для входа в веб-приложение.\n` +
-      `⏱ Ссылка действительна 5 минут.`,
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: '🔐 Войти', url: loginUrl }
-            ]
-          ]
-        }
-      }
-    );
-  } else {
-    await bot.sendMessage(
+  await bot.sendMessage(
       chatId,
       `👋 С возвращением, ${user.firstName || user.username}!\n\n` +
       `Нажмите кнопку ниже для входа в веб-приложение.\n` +
@@ -157,8 +122,7 @@ async function handleStart(msg: TelegramBot.Message) {
           ]
         }
       }
-    );
-  }
+  );
 }
 
 async function handleSubscriptions(msg: TelegramBot.Message) {
@@ -174,7 +138,7 @@ async function handleSubscriptions(msg: TelegramBot.Message) {
   if (!user) {
     await bot.sendMessage(
       chatId,
-      "❌ Вы не зарегистрированы. Используйте /start для регистрации."
+      "❌ Аккаунт Telegram не найден. Зарегистрируйтесь по email на сайте PDFShare."
     );
     return;
   }
@@ -220,7 +184,7 @@ async function handleHelp(msg: TelegramBot.Message) {
     chatId,
     `📚 Справка PDFShare\n\n` +
     `Доступные команды:\n` +
-    `/start - Регистрация и авторизация\n` +
+    `/start - Вход для существующих Telegram-аккаунтов\n` +
     `/subscriptions - Просмотр ваших подписок\n` +
     `/help - Эта справка\n\n` +
     `PDFShare - это сервис для хранения и обмена PDF файлами.\n\n` +
