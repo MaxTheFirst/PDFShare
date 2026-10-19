@@ -191,6 +191,5 @@ volumes:
 networks:
   pdfshare-net:
     driver: bridge
-  traefik:
+  traefik-public:
     external: true
-    name: ${TRAEFIK_NETWORK:-traefik}
